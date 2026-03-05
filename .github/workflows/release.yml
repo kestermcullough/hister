@@ -33,6 +33,9 @@ jobs:
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: git config --global --add safe.directory "$(pwd)"
 
+      - name: Generate front-end
+        run: go generate ./...
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@master
         with:
