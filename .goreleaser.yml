@@ -18,6 +18,9 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+    hooks:
+      pre:
+        - go generate ./...
     overrides:
       - goos: windows
         goarch: amd64
