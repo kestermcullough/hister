@@ -126,6 +126,8 @@
   let deleteConfirmUrl = $state('');
   let deleteConfirmSkip = $state(false);
 
+  let showDeleteAllConfirm = $state(false);
+
   let recentSearches: string[] = $state([]);
   let rulesCount = $state(0);
   let aliasesCount = $state(0);
@@ -438,6 +440,29 @@
   function cancelDelete() {
     showDeleteConfirm = false;
     deleteConfirmUrl = '';
+  }
+
+  async function deleteAllResults() {
+    const q = query + (getUserId() !== undefined ? ' user_id:' + getUserId() : '');
+    await apiFetch('/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    });
+    accumulatedDocs = [];
+    if (lastResults) {
+      lastResults = { ...lastResults, documents: [], total: 0 };
+    }
+    resultsShown = false;
+  }
+
+  function confirmDeleteAll() {
+    showDeleteAllConfirm = false;
+    deleteAllResults();
+  }
+
+  function cancelDeleteAll() {
+    showDeleteAllConfirm = false;
   }
 
   // Convert a file:// URL to a server-side /api/file?path= URL for in-browser viewing.
@@ -1029,6 +1054,58 @@
   </Dialog.Content>
 </Dialog.Root>
 
+<Dialog.Root bind:open={showDeleteAllConfirm}>
+  <Dialog.Content
+    escapeKeydownBehavior="ignore"
+    showCloseButton={false}
+    class="border-border-brand bg-card-surface flex max-h-[80vh] max-w-md flex-col gap-0 overflow-hidden rounded-none border-[3px] p-0 shadow-[6px_6px_0px_black]"
+  >
+    <Dialog.Header class="bg-hister-rose flex-row items-center justify-between gap-2 px-5 py-4">
+      <Dialog.Title class="flex items-center gap-2">
+        <Trash2 class="size-5 text-white" />
+        <span class="font-outfit text-lg font-extrabold text-white"
+          >Delete all matching results</span
+        >
+      </Dialog.Title>
+    </Dialog.Header>
+    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <p class="font-inter text-text-brand-secondary text-sm">
+        Are you sure you want to delete <strong
+          >all {lastResults?.total || totalResults} result(s)</strong
+        > matching:
+      </p>
+      <code
+        class="font-fira bg-muted-surface text-text-brand-muted block px-2 py-1 text-xs break-all"
+        >{query}</code
+      >
+      <p class="font-inter text-hister-rose text-xs font-semibold">This action cannot be undone.</p>
+      {#if dateFrom || dateTo}
+        <p class="font-inter text-text-brand-muted text-xs">
+          Note: date filters are not applied to deletion — all results matching the text query above
+          will be deleted.
+        </p>
+      {/if}
+    </div>
+    <div class="border-border-brand-muted flex shrink-0 justify-end gap-2 border-t-[3px] px-5 py-3">
+      <Button
+        variant="outline"
+        size="sm"
+        class="border-border-brand-muted text-text-brand-secondary rounded-none"
+        onclick={cancelDeleteAll}
+      >
+        No
+      </Button>
+      <Button
+        size="sm"
+        class="bg-hister-rose hover:bg-hister-rose/90 rounded-none border-0 text-white"
+        onclick={confirmDeleteAll}
+      >
+        Yes, delete all
+      </Button>
+    </div>
+  </Dialog.Content>
+</Dialog.Root>
+
 {#if isSearching}
   <div class="flex min-h-0 flex-1 flex-col">
     <div
@@ -1242,6 +1319,26 @@
                             RSS
                           </Button>
                         </div>
+                      </div>
+                      <Separator class="bg-border-brand-muted" />
+                      <div class="space-y-2">
+                        <p
+                          class="font-inter text-hister-rose flex items-center gap-1.5 text-xs font-semibold"
+                        >
+                          <Trash2 class="size-3" />
+                          Danger Zone
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="border-hister-rose text-hister-rose hover:bg-hister-rose/10 h-7 w-full border-[2px] text-xs"
+                          onclick={() => {
+                            showDeleteAllConfirm = true;
+                          }}
+                        >
+                          <Trash2 class="size-3" />
+                          Delete all matching results
+                        </Button>
                       </div>
                     </div>
                   </DropdownMenu.Content>
