@@ -738,7 +738,9 @@ func serveSearch(c *webContext) {
 	for {
 		_, q, err := conn.ReadMessage()
 		if err != nil {
-			log.Error().Err(err).Msg("failed to read websocket message")
+			if !websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Error().Err(err).Msg("failed to read websocket message")
+			}
 			break
 		}
 		var query *indexer.Query
