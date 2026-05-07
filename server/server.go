@@ -969,8 +969,8 @@ func serveRules(c *webContext) {
 		return
 	}
 	f := c.Request.PostForm
-	rules.Skip.ReStrs = strings.Fields(f.Get("skip"))
-	rules.Priority.ReStrs = strings.Fields(f.Get("priority"))
+	rules.Skip.ReStrs = uniqueStrings(strings.Fields(f.Get("skip")))
+	rules.Priority.ReStrs = uniqueStrings(strings.Fields(f.Get("priority")))
 	if err := rules.Compile(); err != nil {
 		log.Error().Err(err).Msg("failed to compile rules")
 		serve500(c)
@@ -1447,6 +1447,20 @@ func serveStatic(c *webContext) {
 
 func serve200(c *webContext) {
 	c.Response.WriteHeader(http.StatusOK)
+}
+
+// uniqueStrings returns a copy of ss with duplicate entries removed,
+// preserving the first occurrence of each value.
+func uniqueStrings(ss []string) []string {
+	seen := make(map[string]struct{}, len(ss))
+	out := make([]string, 0, len(ss))
+	for _, s := range ss {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func serve403(c *webContext) {
