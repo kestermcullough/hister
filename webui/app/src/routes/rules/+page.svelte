@@ -133,8 +133,14 @@
   async function addAlias(e: Event) {
     e.preventDefault();
     if (!newAliasKeyword || !newAliasValue) return;
+    const keyword = newAliasKeyword.trim();
+    if (Object.prototype.hasOwnProperty.call(rules.aliases, keyword)) {
+      message = `Alias "${keyword}" already exists.`;
+      isError = true;
+      return;
+    }
     const formData = new URLSearchParams({
-      'alias-keyword': newAliasKeyword,
+      'alias-keyword': keyword,
       'alias-value': newAliasValue,
     });
     const res = await apiFetch('/add_alias', {
@@ -164,6 +170,16 @@
     const trimmedValue = editAliasValue.trim();
     if (!trimmedKeyword || !trimmedValue) return;
     const oldKey = editingAliasKey!;
+
+    // If the keyword is being renamed, check the new keyword doesn't already exist
+    if (
+      trimmedKeyword !== oldKey &&
+      Object.prototype.hasOwnProperty.call(rules.aliases, trimmedKeyword)
+    ) {
+      message = `Alias "${trimmedKeyword}" already exists.`;
+      isError = true;
+      return;
+    }
 
     // Add/overwrite with new keyword+value
     const addForm = new URLSearchParams({
