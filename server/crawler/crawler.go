@@ -55,6 +55,12 @@ func New(cfg *config.CrawlerConfig, robots *RobotsCache) (Crawler, error) {
 			return nil, fmt.Errorf("chromedp backend: %w", err)
 		}
 		return &baseCrawler{fetcher: f, cfg: cfg, robots: robots}, nil
+	case "bidi":
+		f, err := newBidiFetcher(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("bidi backend: %w", err)
+		}
+		return &baseCrawler{fetcher: f, cfg: cfg, robots: robots}, nil
 	default:
 		f, err := newHTTPFetcher(cfg)
 		if err != nil {
