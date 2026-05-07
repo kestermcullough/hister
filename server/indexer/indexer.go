@@ -916,7 +916,13 @@ func Search(cfg *config.Config, q *Query) (*Results, error) {
 // docs with per-user private docs still gets the right one because the lookup
 // goes through document.GetDocID.
 func GetByURLAndUser(u string, uid uint) *document.Document {
-	return GetByDocID(document.GetDocID(uid, u))
+	if uid > 0 {
+		if d := GetByDocID(document.GetDocID(uid, u)); d != nil {
+			return d
+		}
+	}
+	// try to get the document with 0 UID if the document was not found for the > 0 UID
+	return GetByDocID(document.GetDocID(0, u))
 }
 
 // GetByDocID returns the document with the given bleve document ID, or nil if
