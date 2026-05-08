@@ -1,4 +1,10 @@
 <script lang="ts">
+  import {
+    buildPreviewUrl,
+    pushPreviewHistory,
+    replacePreviewHistory,
+    withSkipUrl,
+  } from '$lib/preview';
   import { onMount, untrack } from 'svelte';
   import { fetchConfig, apiFetch, getUserId } from '$lib/api';
   import { formatTimestamp, formatRelativeTime, KeyHandler, scrollTo } from '$lib/search';
@@ -9,7 +15,7 @@
   import { Separator } from '@hister/components/ui/separator';
   import { ScrollArea } from '@hister/components/ui/scroll-area';
   import { PageHeader } from '@hister/components';
-  import { StatusMessage, PreviewPopup, PreviewPanel } from '$lib/components';
+  import { StatusMessage, PreviewPanel } from '$lib/components';
   import { Search, Clock, RotateCw, Trash2, Eye } from 'lucide-svelte';
 
   let items: HistoryItem[] = $state([]);
@@ -33,9 +39,6 @@
 
   // Preview state
   let isDesktop = $state(false);
-  let showPopup = $state(false);
-  let popupUrl = $state('');
-  let popupHintTitle = $state('');
   let panelUrl = $state('');
   let panelHintTitle = $state('');
   let panelOpen = $state(
@@ -43,6 +46,14 @@
       ? localStorage.getItem('hister-history-panel-open') !== 'false'
       : true,
   );
+  let previewFullscreen = $state(false);
+  const skipUrl = { value: false };
+
+  // --- History state helpers ---
+
+  function pushHistoryPageHistory() {
+    history.pushState({ type: 'history' }, '', '/history');
+  }
 
   $effect(() => {
     const mq = window.matchMedia('(min-width: 1280px)');
@@ -64,9 +75,40 @@
       panelUrl = url;
       return;
     }
-    popupHintTitle = title;
-    popupUrl = url;
-    showPopup = true;
+    // Mobile: open fullscreen preview
+    panelUrl = url;
+    panelHintTitle = title;
+    previewFullscreen = true;
+    withSkipUrl(skipUrl, () => pushPreviewHistory(url, title));
+  }
+
+  function enterFullscreen() {
+    previewFullscreen = true;
+    withSkipUrl(skipUrl, () => pushPreviewHistory(panelUrl, panelHintTitle));
+  }
+
+  function exitFullscreen() {
+    previewFullscreen = false;
+    withSkipUrl(skipUrl, () => pushHistoryPageHistory());
+  }
+
+  function closePanelAndFullscreen() {
+    previewFullscreen = false;
+    panelOpen = false;
+    localStorage.setItem('hister-history-panel-open', 'false');
+    withSkipUrl(skipUrl, () => pushHistoryPageHistory());
+  }
+
+  function handlePopState(event: PopStateEvent) {
+    const state = event.state as { type?: string; id?: string; title?: string } | null;
+    if (state?.type === 'preview') {
+      panelUrl = state.id || '';
+      panelHintTitle = state.title || '';
+      panelOpen = true;
+      previewFullscreen = true;
+      return;
+    }
+    previewFullscreen = false;
   }
 
   $effect(() => {
@@ -290,11 +332,21 @@
     if (e) e.preventDefault();
     const item = filteredItems[highlightIdx];
     if (!item) return;
-    if (showPopup) {
-      showPopup = false;
-      return;
+    if (isDesktop) {
+      if (previewFullscreen) {
+        exitFullscreen();
+      } else if (panelOpen) {
+        enterFullscreen();
+      } else {
+        openPreview(item.url, item.title || item.url);
+      }
+    } else {
+      if (previewFullscreen) {
+        closePanelAndFullscreen();
+      } else {
+        openPreview(item.url, item.title || item.url);
+      }
     }
-    openPreview(item.url, item.title || item.url);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -327,20 +379,25 @@
     highlightIdx = 0;
   });
 
-  // Auto-update panel on desktop when focused item changes
+  // Auto-update panel on desktop when focused item changes.
+  // Uses data so it works even when results are hidden in fullscreen mode.
   $effect(() => {
     const idx = highlightIdx;
     filteredItems;
-    if (!isDesktop || !panelOpen || !filteredItems.length) return;
+    const isFullscreen = previewFullscreen;
+    if (!isDesktop || !filteredItems.length || (!panelOpen && !isFullscreen)) return;
     const item = filteredItems[idx];
     if (!item) return;
     if (untrack(() => panelUrl) === item.url) return;
     panelHintTitle = item.title || item.url;
     panelUrl = item.url;
+    if (isFullscreen) {
+      withSkipUrl(skipUrl, () => replacePreviewHistory(item.url, item.title || item.url));
+    }
   });
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onpopstate={handlePopState} />
 
 <svelte:head>
   <title>Hister - History</title>
@@ -500,101 +557,112 @@
     </div>
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
-      <ScrollArea
-        orientation="vertical"
-        class="min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden"
-      >
-        <div class="w-full space-y-4 overflow-hidden px-3 py-3 md:space-y-6 md:px-6 md:py-5">
-          {#each groups as group, gi}
-            {@const color = getGlobalGroupColor(group.key)}
-            {@const groupOffset = groups
-              .slice(0, gi)
-              .reduce((acc: number, g) => acc + g.items.length, 0)}
-            <div id="group-{encodeURIComponent(group.key)}" class="space-y-2">
-              <span class="font-outfit text-sm font-bold" style="color: {getColorVar(color)};"
-                >{group.label}</span
-              >
-              <Separator class="h-0.5" style="background-color: {getColorVar(color)};" />
+      {#if !previewFullscreen}
+        <ScrollArea
+          orientation="vertical"
+          class="min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden"
+        >
+          <div class="w-full space-y-4 overflow-hidden px-3 py-3 md:space-y-6 md:px-6 md:py-5">
+            {#each groups as group, gi}
+              {@const color = getGlobalGroupColor(group.key)}
+              {@const groupOffset = groups
+                .slice(0, gi)
+                .reduce((acc: number, g) => acc + g.items.length, 0)}
+              <div id="group-{encodeURIComponent(group.key)}" class="space-y-2">
+                <span class="font-outfit text-sm font-bold" style="color: {getColorVar(color)};"
+                  >{group.label}</span
+                >
+                <Separator class="h-0.5" style="background-color: {getColorVar(color)};" />
 
-              <div class="space-y-0">
-                {#each group.items as item, ii}
-                  {@const itemColor = color}
-                  {@const flatIdx = groupOffset + ii}
-                  <article
-                    data-result
-                    class="bg-card-surface border-b-brutal-border flex items-start gap-2 overflow-hidden border-b-[3px] px-2.5 py-2 transition-all duration-150 md:items-center md:gap-3 md:px-3.5 md:py-2.5"
-                    style={flatIdx === highlightIdx
-                      ? `border-left: 6px solid ${getColorVar(itemColor)}; background: linear-gradient(90deg, transparent, rgba(90, 138, 138, 0.12), transparent);`
-                      : `border-left: 3px solid ${getColorVar(itemColor)};`}
-                  >
-                    <div class="w-0 min-w-0 flex-1 space-y-0.5">
-                      <a
-                        data-result-link={item.url}
-                        href={item.url}
-                        class="font-outfit text-hister-cyan block truncate font-bold no-underline hover:underline md:text-lg"
-                        target="_blank"
-                        rel="noopener"
-                        onclick={() => (highlightIdx = flatIdx)}
-                      >
-                        {(item.title || item.url).replace(/<[^>]*>/g, '')}
-                      </a>
-                      <div
-                        class="items-left flex flex-col gap-0 md:flex-row md:items-center md:gap-2"
-                      >
-                        {#if item.added}
-                          <span
-                            class="font-inter text-text-brand-muted text-xs whitespace-nowrap md:text-sm"
-                            title={formatTimestamp(item.added)}
-                            >{formatRelativeTime(item.added)} ·</span
-                          >
-                        {/if}
-                        <span
-                          class="font-fira text-text-brand-muted block truncate text-xs md:text-sm"
-                          title={item.url}>{item.url}</span
+                <div class="space-y-0">
+                  {#each group.items as item, ii}
+                    {@const itemColor = color}
+                    {@const flatIdx = groupOffset + ii}
+                    <article
+                      data-result
+                      class="bg-card-surface border-b-brutal-border flex items-start gap-2 overflow-hidden border-b-[3px] px-2.5 py-2 transition-all duration-150 md:items-center md:gap-3 md:px-3.5 md:py-2.5"
+                      style={flatIdx === highlightIdx
+                        ? `border-left: 6px solid ${getColorVar(itemColor)}; background: linear-gradient(90deg, transparent, rgba(90, 138, 138, 0.12), transparent);`
+                        : `border-left: 3px solid ${getColorVar(itemColor)};`}
+                    >
+                      <div class="w-0 min-w-0 flex-1 space-y-0.5">
+                        <a
+                          data-result-link={item.url}
+                          href={item.url}
+                          class="font-outfit text-hister-cyan block truncate font-bold no-underline hover:underline md:text-lg"
+                          target="_blank"
+                          rel="noopener"
+                          onclick={() => (highlightIdx = flatIdx)}
                         >
+                          {(item.title || item.url).replace(/<[^>]*>/g, '')}
+                        </a>
+                        <div
+                          class="items-left flex flex-col gap-0 md:flex-row md:items-center md:gap-2"
+                        >
+                          {#if item.added}
+                            <span
+                              class="font-inter text-text-brand-muted text-xs whitespace-nowrap md:text-sm"
+                              title={formatTimestamp(item.added)}
+                              >{formatRelativeTime(item.added)} ·</span
+                            >
+                          {/if}
+                          <span
+                            class="font-fira text-text-brand-muted block truncate text-xs md:text-sm"
+                            title={item.url}>{item.url}</span
+                          >
+                        </div>
                       </div>
-                    </div>
-                    <nav class="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        class="text-text-brand-muted hover:text-hister-teal size-7 shrink-0"
-                        onclick={() => {
-                          highlightIdx = flatIdx;
-                          openPreview(item.url, item.title || item.url);
-                        }}
-                      >
-                        <Eye class="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        class="text-text-brand-muted hover:text-hister-rose size-7 shrink-0"
-                        onclick={() => deleteItem(item)}
-                      >
-                        <Trash2 class="size-3.5" />
-                      </Button>
-                    </nav>
-                  </article>
-                {/each}
+                      <nav class="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          class="text-text-brand-muted hover:text-hister-teal size-7 shrink-0"
+                          onclick={() => {
+                            highlightIdx = flatIdx;
+                            openPreview(item.url, item.title || item.url);
+                          }}
+                        >
+                          <Eye class="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          class="text-text-brand-muted hover:text-hister-rose size-7 shrink-0"
+                          onclick={() => deleteItem(item)}
+                        >
+                          <Trash2 class="size-3.5" />
+                        </Button>
+                      </nav>
+                    </article>
+                  {/each}
+                </div>
               </div>
-            </div>
-          {/each}
-        </div>
-      </ScrollArea>
+            {/each}
+          </div>
+        </ScrollArea>
+      {/if}
 
-      {#if panelOpen && isDesktop}
+      <!-- Preview panel: fullscreen (both mobile and desktop) or split-pane (desktop only) -->
+      {#if previewFullscreen}
         <PreviewPanel
           url={panelUrl}
           hintTitle={panelHintTitle}
+          fullscreen={true}
+          onclose={closePanelAndFullscreen}
+          onfullscreentoggle={isDesktop ? exitFullscreen : undefined}
+        />
+      {:else if panelOpen && isDesktop}
+        <PreviewPanel
+          url={panelUrl}
+          hintTitle={panelHintTitle}
+          fullscreen={false}
           onclose={() => {
             panelOpen = false;
             localStorage.setItem('hister-history-panel-open', 'false');
           }}
+          onfullscreentoggle={enterFullscreen}
         />
       {/if}
     </div>
   </div>
 {/if}
-
-<PreviewPopup bind:open={showPopup} url={popupUrl} hintTitle={popupHintTitle} />

@@ -1,5 +1,11 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
+  import {
+    buildPreviewUrl,
+    pushPreviewHistory,
+    replacePreviewHistory,
+    withSkipUrl,
+  } from '$lib/preview';
   import { page } from '$app/stores';
   import {
     WebSocketManager,
@@ -302,7 +308,7 @@
     wsManager?.sendImmediate(JSON.stringify(buildSearchQuery(query, searchQueryOpts(pageKey))));
   }
 
-  let skipUrlUpdate = false;
+  const skipUrl = { value: false };
   let lastPushedEmpty = true;
 
   // --- URL builders ---
@@ -311,10 +317,6 @@
     return query
       ? `/?q=${encodeURIComponent(query)}${dateFrom ? '&date_from=' + encodeURIComponent(dateFrom) : ''}${dateTo ? '&date_to=' + encodeURIComponent(dateTo) : ''}`
       : '/';
-  }
-
-  function buildPreviewUrl(id: string, title: string): string {
-    return `/preview?id=${encodeURIComponent(id)}${title ? '&title=' + encodeURIComponent(title) : ''}`;
   }
 
   // --- History state helpers ---
@@ -331,25 +333,8 @@
     lastPushedEmpty = !query;
   }
 
-  function pushPreviewHistory(id: string, title: string) {
-    history.pushState({ type: 'preview', id, title }, '', buildPreviewUrl(id, title));
-  }
-
-  function replacePreviewHistory(id: string, title: string) {
-    history.replaceState({ type: 'preview', id, title }, '', buildPreviewUrl(id, title));
-  }
-
-  // Sets skipUrlUpdate around a history mutation so the reactive updateURL effect stays quiet.
-  function withSkipUrl(fn: () => void) {
-    skipUrlUpdate = true;
-    fn();
-    tick().then(() => {
-      skipUrlUpdate = false;
-    });
-  }
-
   function updateURL() {
-    if (skipUrlUpdate) return;
+    if (skipUrl.value) return;
     if (previewFullscreen) return;
     const isEmpty = !query;
     if (isEmpty !== lastPushedEmpty) {
@@ -369,7 +354,7 @@
       return;
     }
     previewFullscreen = false;
-    skipUrlUpdate = true;
+    skipUrl.value = true;
     const params = new URLSearchParams(window.location.search);
     query = params.get('q') || '';
     dateFrom = params.get('date_from') || '';
@@ -381,7 +366,7 @@
       lastResults = null;
     }
     tick().then(() => {
-      skipUrlUpdate = false;
+      skipUrl.value = false;
     });
   }
 
@@ -629,24 +614,21 @@
     panelUrl = url;
     panelHintTitle = title;
     previewFullscreen = true;
-    withSkipUrl(() => pushPreviewHistory(url, title));
-  }
-
-  function enterFullscreen() {
+    withSkipUrl(skipUrl, () => pushPreviewHistory(url, title));
     previewFullscreen = true;
-    withSkipUrl(() => pushPreviewHistory(panelUrl, panelHintTitle));
+    withSkipUrl(skipUrl, () => pushPreviewHistory(panelUrl, panelHintTitle));
   }
 
   function exitFullscreen() {
     previewFullscreen = false;
-    withSkipUrl(() => pushSearchHistory());
+    withSkipUrl(skipUrl, () => pushSearchHistory());
   }
 
   function closePanelAndFullscreen() {
     previewFullscreen = false;
     panelOpen = false;
     localStorage.setItem('hister-panel-open', 'false');
-    withSkipUrl(() => pushSearchHistory());
+    withSkipUrl(skipUrl, () => pushSearchHistory());
   }
 
   function selectNthResult(n: number) {
@@ -1008,7 +990,7 @@
     panelHintTitle = result.title || '';
     panelUrl = url;
     if (isFullscreen) {
-      withSkipUrl(() => replacePreviewHistory(url, result.title || ''));
+      withSkipUrl(skipUrl, () => replacePreviewHistory(url, result.title || ''));
     }
   });
   $effect(() => {
