@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -371,7 +372,7 @@ func withCSRF(handler endpointHandler) endpointHandler {
 			return
 		}
 		// Allow add, config requests from the addons
-		for _, p := range []string{"/add", "/api/add", "/api/config", "/api/rules", "/api/delete"} {
+		for _, p := range []string{"/add", "/api/add", "/api/add_pdf", "/api/config", "/api/rules", "/api/delete"} {
 			if c.Request.URL.Path != c.Config.BasePathPrefix()+p {
 				continue
 			}
@@ -869,6 +870,65 @@ func serveAdd(c *webContext) {
 		return
 	}
 	serve200(c)
+}
+
+func serveAddPDF(c *webContext) {
+	if c.Request.Method != http.MethodPost {
+		serve500(c)
+		return
+	}
+
+	var req struct {
+		Document *document.Document `json:"document"`
+		PDF      string             `json:"pdf"`
+	}
+	if err := json.NewDecoder(c.Request.Body).Decode(&req); err != nil {
+		http.Error(c.Response, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Document == nil {
+		http.Error(c.Response, "missing document field", http.StatusBadRequest)
+		return
+	}
+	if req.PDF == "" {
+		http.Error(c.Response, "missing pdf field", http.StatusBadRequest)
+		return
+	}
+	pdfData, err := base64.StdEncoding.DecodeString(req.PDF)
+	if err != nil {
+		http.Error(c.Response, "pdf must be base64-encoded: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	d := req.Document
+	if c.effectiveRules().IsSkip(d.URL) || c.Config.IsSameHost(d.URL) {
+		log.Debug().Str("url", d.URL).Msg("skip indexing pdf")
+		c.Response.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+
+	d.UserID = c.UserID
+	if c.Config.App.UserHandling && c.IsAdmin {
+		if h := c.Request.Header.Get("X-Hister-Target-User-ID"); h != "" {
+			if uid, err := strconv.ParseUint(h, 10, 64); err == nil {
+				d.UserID = uint(uid)
+			}
+		}
+	}
+
+	if err := indexer.AddPDF(d, pdfData); err != nil {
+		if errors.Is(err, document.ErrSensitiveContent) {
+			log.Warn().Str("URL", d.URL).Msg("rejected pdf document: sensitive content")
+			http.Error(c.Response, document.ErrSensitiveContent.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		log.Error().Err(err).Str("URL", d.URL).Msg("failed to index pdf")
+		serve500(c)
+		return
+	}
+
+	log.Debug().Str("URL", d.URL).Msg("pdf added to index")
+	c.Response.WriteHeader(http.StatusCreated)
 }
 
 func serveHistory(c *webContext) {

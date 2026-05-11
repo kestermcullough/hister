@@ -166,6 +166,28 @@ func init() {
 			},
 		},
 		{
+			Name:         "Add PDF",
+			Path:         "/api/add_pdf",
+			Method:       POST,
+			CSRFRequired: true,
+			Handler:      serveAddPDF,
+			Description:  "Index a PDF document. Accepts application/json with a document object and base64-encoded PDF content.",
+			JSONSchema: []*JSONSchemaField{
+				{
+					Name:        "document",
+					Type:        "object",
+					Required:    true,
+					Description: "Document metadata",
+					Fields: []*JSONSchemaField{
+						{Name: "url", Type: "string", Required: true, Description: "URL or file:// URI identifying the PDF"},
+						{Name: "title", Type: "string", Required: false, Description: "Document title"},
+						{Name: "label", Type: "string", Required: false, Description: "User-defined label"},
+					},
+				},
+				{Name: "pdf", Type: "string", Required: true, Description: "Base64-encoded PDF binary content"},
+			},
+		},
+		{
 			Name:         "Get document",
 			Path:         "/api/document",
 			Method:       GET,
