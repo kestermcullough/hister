@@ -780,6 +780,9 @@ func doSearch(query *indexer.Query, cfg *config.Config, rules *config.Rules, use
 	oq := query.Text
 	query.Text = rules.ResolveAliases(query.Text)
 	query.UserID = userID
+	if rules != nil && rules.Priority != nil {
+		query.PriorityPatterns = rules.Priority.ReStrs
+	}
 	res, err := indexer.Search(cfg, query)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get indexer results")

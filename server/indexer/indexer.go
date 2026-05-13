@@ -80,7 +80,10 @@ type Query struct {
 	// Combine with UserID / Facets / DateFrom / DateTo for cheap aggregate
 	// queries (e.g. completion sources). Text is ignored when set.
 	MatchAll bool `json:"match_all,omitempty"`
-	cfg      *config.Config
+	// PriorityPatterns contains URL regex patterns whose matching documents
+	// receive a score boost.  Set by doSearch from the user's priority rules.
+	PriorityPatterns []string `json:"priority_patterns,omitempty"`
+	cfg              *config.Config
 }
 
 const defaultFacetTermSize = 10
@@ -1080,6 +1083,20 @@ func (q *Query) create() query.Query {
 		globalQuery.SetField("user_id")
 		userOrGlobal := bleve.NewDisjunctionQuery(userQuery, globalQuery)
 		sq = bleve.NewConjunctionQuery(sq, userOrGlobal)
+	}
+
+	if !q.MatchAll && len(q.PriorityPatterns) > 0 {
+		bq := query.NewBooleanQuery([]query.Query{sq}, nil, nil)
+		for _, p := range q.PriorityPatterns {
+			if p == "" {
+				continue
+			}
+			rq := bleve.NewRegexpQuery(p)
+			rq.SetField("url")
+			rq.SetBoost(100)
+			bq.AddShould(rq)
+		}
+		return bq
 	}
 
 	return sq
