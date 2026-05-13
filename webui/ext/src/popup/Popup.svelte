@@ -7,7 +7,7 @@
   import SettingsInput from '../options/SettingsInput.svelte';
   import * as Tooltip from '@hister/components/ui/tooltip';
   import { SkipRuleActions, buildUrlSkipPattern, buildDomainSkipPattern } from '@hister/components';
-  import { Settings, Sun, Moon, Save, Info } from 'lucide-svelte';
+  import { Settings, Sun, Moon, Save, Info, Check } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
   import { ModeWatcher, toggleMode, mode } from 'mode-watcher';
 
@@ -255,6 +255,33 @@
     });
   }
 
+  async function applyLabel() {
+    const cookieStr = await new Promise<string>((resolve) => {
+      chrome.storage.local.get(['histerCookies'], (data) => resolve(data['histerCookies'] ?? ''));
+    });
+    const serverURL = url.endsWith('/') ? url.slice(0, -1) : url;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (cookieStr) headers['Cookie'] = cookieStr;
+    for (const h of customHeaders) {
+      if (h.name) headers[h.name] = h.value ?? '';
+    }
+    try {
+      const res = await fetch(`${serverURL}/api/label`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ url: tabURL, label: pageLabel }),
+      });
+      if (res.ok) {
+        pageLabel = '';
+        setSuccessMessage('Label applied to this page');
+      } else {
+        setErrorMessage('Failed to apply label');
+      }
+    } catch (e: unknown) {
+      setErrorMessage((e as Error).message ?? 'Failed to apply label');
+    }
+  }
+
   function toggleSettings() {
     showSettings = !showSettings;
     message = '';
@@ -350,9 +377,8 @@
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content class="max-w-52 text-xs">
-                  A label attached to every page you index. Search with
-                  <span class="font-mono">label:yourtext</span> to filter results.<br />
-                  Useful for labeling research sessions or differentiating browser profiles.
+                  Search with <span class="font-mono">label:yourtext</span> to filter results.<br />
+                  Useful for labeling pages, research sessions or differentiating browser profiles.
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
@@ -365,14 +391,50 @@
             placeholder="Add label..."
             class="bg-page-bg border-hister-indigo font-fira text-text-brand placeholder:text-text-brand-muted focus-visible:border-hister-coral h-9 flex-1 border-[3px] px-3 text-sm shadow-none transition-colors focus-visible:ring-0"
           />
-          <Button
-            variant="outline"
-            onclick={saveLabel}
-            aria-label="Save label"
-            class="border-brutal-border font-outfit hover:border-hister-indigo h-9 border-[3px] px-3 text-sm font-bold tracking-wide transition-all hover:shadow-[3px_3px_0_var(--brutal-shadow)]"
-          >
-            <Save size={16} />
-          </Button>
+          <Tooltip.Provider delayDuration={0}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="outline"
+                    onclick={saveLabel}
+                    aria-label="Save label"
+                    class="border-brutal-border font-outfit hover:border-hister-indigo h-9 border-[3px] px-3 text-sm font-bold tracking-wide transition-all hover:shadow-[3px_3px_0_var(--brutal-shadow)]"
+                  >
+                    <Save size={16} />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content class="max-w-52 text-xs">
+                  Save as default label applied to all pages you index from now on with this profile
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+          <Tooltip.Provider delayDuration={0}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="outline"
+                    onclick={applyLabel}
+                    aria-label="Apply label to this page"
+                    class="border-brutal-border font-outfit hover:border-hister-indigo h-9 border-[3px] px-3 text-sm font-bold tracking-wide transition-all hover:shadow-[3px_3px_0_var(--brutal-shadow)]"
+                  >
+                    <Check size={16} />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content class="max-w-52 text-xs">
+                  Apply label to this page only
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
         </div>
       </div>
 
