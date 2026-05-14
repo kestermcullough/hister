@@ -833,7 +833,7 @@ func computeDocumentDiff(old, new *document.Document) (htmlDiff, textDiff string
 			return ""
 		}
 		diffs := dmp.DiffMain(oldContent, newContent, true)
-		dmp.DiffCleanupSemantic(diffs)
+		diffs = dmp.DiffCleanupSemantic(diffs)
 		return dmp.PatchToText(dmp.PatchMake(oldContent, diffs))
 	}
 	htmlDiff = makePatch(old.HTML, new.HTML)
