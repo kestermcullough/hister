@@ -1192,6 +1192,7 @@ func serveGet(c *webContext) {
 }
 
 func servePreview(c *webContext) {
+	// TODO apply previous version diffs to display earlier versions of the page.
 	u := c.Request.URL.Query().Get("url")
 	doc := indexer.GetByURLAndUser(u, c.UserID)
 	if doc == nil {
