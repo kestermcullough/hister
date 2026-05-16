@@ -161,3 +161,8 @@
 .content a img {
   cursor: pointer;
 }
+
+.content.doc-content summary {
+  cursor: pointer;
+  font-size: 1.5em;
+}
