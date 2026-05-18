@@ -34,7 +34,7 @@
     },
     {
       title: 'Crawler with multiple backends',
-      desc: 'Index entire websites with the built-in BFS crawler. Supports a standard HTTP backend and a headless Chrome (chromedp) backend for JavaScript-heavy pages.',
+      desc: 'Index entire websites with the built-in BFS crawler. Supports a standard HTTP backend and real browser backends for JavaScript-heavy pages.',
     },
     {
       title: 'MCP server',
@@ -46,11 +46,11 @@
     },
     {
       title: 'Browser history import',
-      desc: 'Bring your existing Firefox or Chrome browsing history into Hister with a single command, no manual data entry required.',
+      desc: 'Bring your existing Firefox or Chrome browsing history into Hister.',
     },
     {
       title: 'History view',
-      desc: 'Browse and revisit your past search queries to quickly return to previous research sessions and rediscover forgotten results.',
+      desc: 'Browse and revisit your past search queries and indexed documents.',
     },
     {
       title: 'User handling',
@@ -58,15 +58,15 @@
     },
     {
       title: 'Privacy first',
-      desc: 'Fully self-hosted with no telemetry, no cloud sync, and no third-party services. Your data never leaves your own machine.',
+      desc: 'Fully self-hosted with no telemetry, no cloud sync, and no third-party services. Your data never leaves your own infrastructure.',
     },
     {
       title: 'Content rules',
-      desc: 'Define skip rules to block unwanted sites, priority rules to surface important domains, and query aliases to create custom search shortcuts.',
+      desc: 'Define skip rules to block unwanted sites, priority rules to surface important domains, versioning rules to preserve document changes, and query aliases to create custom search shortcuts.',
     },
     {
       title: 'Browser extensions',
-      desc: 'Lightweight extensions available for Chrome and Firefox. Install once and indexing happens automatically in the background as you browse.',
+      desc: 'Extensions available for Chrome and Firefox. Install once and indexing happens automatically in the background as you browse.',
     },
     {
       title: 'Terminal UI',

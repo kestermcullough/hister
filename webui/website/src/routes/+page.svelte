@@ -11,7 +11,7 @@
 </svelte:head>
 
 <Hero />
+<FinalCTA />
 <Features />
 <WhyHister />
 <Previews />
-<FinalCTA />

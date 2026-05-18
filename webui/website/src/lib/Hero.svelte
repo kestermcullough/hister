@@ -45,12 +45,12 @@
     <li class="hidden text-[var(--text-secondary)]/40 md:block" aria-hidden="true">|</li>
     <li class="flex items-center gap-2 text-[var(--text-secondary)]">
       <Server size={20} class="shrink-0" />
-      <span class="font-space text-xl font-bold tracking-[1px] uppercase">Self-Hosted</span>
+      <span class="font-space text-xl font-bold tracking-[1px] uppercase">Self Hosted</span>
     </li>
     <li class="hidden text-[var(--text-secondary)]/40 md:block" aria-hidden="true">|</li>
     <li class="flex items-center gap-2 text-[var(--text-secondary)]">
       <Lock size={20} class="shrink-0" />
-      <span class="font-space text-xl font-bold tracking-[1px] uppercase">Privacy Respecting</span>
+      <span class="font-space text-xl font-bold tracking-[1px] uppercase">Privacy First</span>
     </li>
   </ul>
 </section>

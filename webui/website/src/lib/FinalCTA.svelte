@@ -9,12 +9,8 @@
   <h2
     class="font-space max-w-[800px] text-center text-4xl leading-[0.95] font-black tracking-[-1px] text-white uppercase md:text-6xl lg:text-[64px]"
   >
-    Preserve your data
+    Preserve Knowledge
   </h2>
-
-  <p class="font-inter max-w-[600px] text-center text-lg leading-relaxed text-white/55">
-    Free, open-source and completely private.
-  </p>
 
   <nav class="flex flex-wrap items-center justify-center gap-4">
     <Button
