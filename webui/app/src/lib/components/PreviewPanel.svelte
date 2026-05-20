@@ -5,7 +5,7 @@
   import { formatTimestamp, formatMetaDate } from '$lib/search';
   import { ScrollArea } from '@hister/components/ui/scroll-area';
   import { Button } from '@hister/components/ui/button';
-  import { Eye, X, Maximize2, Minimize2, History } from 'lucide-svelte';
+  import { Eye, X, Maximize2, Minimize2, History } from '@lucide/svelte';
 
   interface Props {
     url: string;

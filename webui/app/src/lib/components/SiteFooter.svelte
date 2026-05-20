@@ -2,7 +2,7 @@
   import { page } from '$app/stores';
   import { Button } from '@hister/components/ui/button';
   import { toggleMode, mode } from 'mode-watcher';
-  import { Sun, Moon, Keyboard } from 'lucide-svelte';
+  import { Sun, Moon, Keyboard } from '@lucide/svelte';
   import { showHelp } from '$lib/stores';
 
   const links = [

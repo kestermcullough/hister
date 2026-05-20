@@ -17,7 +17,7 @@
   import { ScrollArea } from '@hister/components/ui/scroll-area';
   import { PageHeader } from '@hister/components';
   import { StatusMessage, PreviewPanel } from '$lib/components';
-  import { Search, Clock, RotateCw, Trash2, Eye } from 'lucide-svelte';
+  import { Search, Clock, RotateCw, Trash2, Eye } from '@lucide/svelte';
 
   let items: HistoryItem[] = $state([]);
   let loading = $state(true);

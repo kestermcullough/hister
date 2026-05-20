@@ -5,7 +5,7 @@
   import { Input } from '@hister/components/ui/input';
   import { Button } from '@hister/components/ui/button';
   import * as DropdownMenu from '@hister/components/ui/dropdown-menu';
-  import { MoreVertical, Pin, PinOff, Tag, Trash2 } from 'lucide-svelte';
+  import { MoreVertical, Pin, PinOff, Tag, Trash2 } from '@lucide/svelte';
 
   interface Props {
     url: string;

@@ -2,7 +2,7 @@
   import { Button } from '@hister/components/ui/button';
   import { Badge } from '@hister/components/ui/badge';
   import { Separator } from '@hister/components/ui/separator';
-  import { Clock, Calendar, Eye, ThumbsUp, ExternalLink } from 'lucide-svelte';
+  import { Clock, Calendar, Eye, ThumbsUp, ExternalLink } from '@lucide/svelte';
 
   interface Chapter {
     title: string;

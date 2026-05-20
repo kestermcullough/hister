@@ -4,7 +4,7 @@
   import * as Card from '@hister/components/ui/card';
   import { PageHeader } from '@hister/components';
   import { StatusMessage } from '$lib/components';
-  import { Eye, EyeOff, RefreshCw, User, Info } from 'lucide-svelte';
+  import { Eye, EyeOff, RefreshCw, User, Info } from '@lucide/svelte';
 
   let username = $state('');
   let token = $state('');

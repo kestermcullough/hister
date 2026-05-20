@@ -6,7 +6,7 @@
   import { Badge } from '@hister/components/ui/badge';
   import * as Card from '@hister/components/ui/card';
   import * as Table from '@hister/components/ui/table';
-  import { Shield, Link2, Plus, Trash2, Pencil, Check, X } from 'lucide-svelte';
+  import { Shield, Link2, Plus, Trash2, Pencil, Check, X } from '@lucide/svelte';
   import { PageHeader } from '@hister/components';
   import * as Alert from '@hister/components/ui/alert';
   import AlertCircle from '@lucide/svelte/icons/circle-alert';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { Button } from '@hister/components/ui/button';
-  import { LogIn, LogOut, UserRound } from 'lucide-svelte';
+  import { LogIn, LogOut, UserRound } from '@lucide/svelte';
   import type { AppConfig } from '$lib/api';
 
   let { config, onLogout }: { config: AppConfig | null; onLogout: () => void } = $props();

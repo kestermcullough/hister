@@ -2,7 +2,7 @@
   import { Button } from '@hister/components/ui/button';
   import { Input } from '@hister/components/ui/input';
   import * as Card from '@hister/components/ui/card';
-  import { Lock } from 'lucide-svelte';
+  import { Lock } from '@lucide/svelte';
   import { login, resetConfig } from '$lib/api';
 
   let authMode = $state<'token' | 'user' | 'none'>('token');

@@ -7,7 +7,7 @@
   import SettingsInput from '../options/SettingsInput.svelte';
   import * as Tooltip from '@hister/components/ui/tooltip';
   import { SkipRuleActions, buildUrlSkipPattern, buildDomainSkipPattern } from '@hister/components';
-  import { Settings, Sun, Moon, Save, Info, Check } from 'lucide-svelte';
+  import { Settings, Sun, Moon, Save, Info, Check } from '@lucide/svelte';
   import { slide } from 'svelte/transition';
   import { ModeWatcher, toggleMode, mode } from 'mode-watcher';
 

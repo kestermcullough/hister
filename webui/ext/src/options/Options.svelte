@@ -4,7 +4,7 @@
   import { Label } from '@hister/components/ui/label';
   import * as Card from '@hister/components/ui/card';
   import SettingsInput from './SettingsInput.svelte';
-  import { Plus, Trash2, Sun, Moon } from 'lucide-svelte';
+  import { Plus, Trash2, Sun, Moon } from '@lucide/svelte';
   import { ModeWatcher, toggleMode, mode } from 'mode-watcher';
 
   const defaultURL = 'http://127.0.0.1:4433/';

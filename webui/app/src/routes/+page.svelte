@@ -59,7 +59,7 @@
     Calendar,
     Filter,
     Sparkles,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import type { HistoryItem } from '$lib/types';
 
   interface Config {

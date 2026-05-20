@@ -9,7 +9,7 @@
   import * as Alert from '@hister/components/ui/alert';
   import AlertCircle from '@lucide/svelte/icons/circle-alert';
   import CheckCircle from '@lucide/svelte/icons/circle-check';
-  import { Save } from 'lucide-svelte';
+  import { Save } from '@lucide/svelte';
 
   let url = $state('');
   let title = $state('');

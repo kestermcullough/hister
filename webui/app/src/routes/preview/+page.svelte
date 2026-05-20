@@ -2,7 +2,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button } from '@hister/components/ui/button';
-  import { ArrowLeft } from 'lucide-svelte';
+  import { ArrowLeft } from '@lucide/svelte';
   import PreviewPanel from '$lib/components/PreviewPanel.svelte';
 
   let docUrl = $state('');

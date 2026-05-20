@@ -25,9 +25,9 @@
     "@fontsource/outfit": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
     "@hister/components": "^1.0.0",
+    "@lucide/svelte": "^1.16.0",
     "@tailwindcss/typography": "^0.5.19",
     "animejs": "^4.4.1",
-    "lucide-svelte": "^1.0.1",
     "mode-watcher": "^1.1.0"
   }
 }
