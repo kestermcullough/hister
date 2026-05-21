@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Separator } from '@hister/components/ui/separator';
+  import Heart from '@lucide/svelte/icons/heart';
 
   const linkCols = [
     {
@@ -14,6 +15,7 @@
       title: 'Resources',
       links: [
         { label: 'GitHub', href: 'https://github.com/asciimoo/hister' },
+        { label: 'Codeberg', href: 'https://codeberg.com/asciimoo/hister' },
         { label: 'Posts', href: '/posts' },
       ],
     },
@@ -84,8 +86,8 @@
       >2026 Hister. Open-source under <a href="https://www.gnu.org/licenses/#AGPL">AGPLv3 License</a
       >.</span
     >
-    <span class="font-space text-[13px] font-semibold tracking-[1px] text-white/25"
-      >Built with Go</span
+    <span class="font-space flex text-[13px] font-semibold tracking-[1px] text-white/25"
+      >Built with <Heart size={16} class="ml-1 fill-red-300 text-red-300" /></span
     >
   </div>
 </footer>
