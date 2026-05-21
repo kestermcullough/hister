@@ -47,7 +47,7 @@ type indexer struct {
 	idx               bleve.IndexAlias       // used only for Search()
 	indexers          map[string]bleve.Index // default and language specific indexers
 	dir               string
-	dataDir           string
+	data              *dataStore
 	langDetector      document.LanguageDetector
 	reindexInProgress atomic.Bool
 	embedder          *vectorstore.Embedder
@@ -279,7 +279,7 @@ func initializeIndexer(basePath string, detectLanguages bool) (*indexer, error) 
 		dir:         basePath,
 		embedCtx:    embedCtx,
 		embedCancel: embedCancel,
-		dataDir:     filepath.Join(basePath, dataDirName),
+		data:        newDataStore(filepath.Join(basePath, dataDirName)),
 	}
 	if !detectLanguages {
 		i.langDetector = document.NewNullLanguageDetector()
@@ -328,11 +328,10 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 	if err != nil {
 		return err
 	}
-	// The data directory is shared between the live and temp indexers so that
+	// The data store is shared between the live and temp indexers so that
 	// content-addressed files written during reindex are immediately usable
 	// after the rename step. No data directory rename is needed.
-	dataDir := filepath.Join(basePath, dataDirName)
-	tmpIdx.dataDir = dataDir
+	tmpIdx.data = idx.data
 
 	// Carry the vector store and embedder into the temporary indexer so that
 	// MultiBatch.Add() re-embeds every surviving document.  The vector store is
@@ -472,10 +471,10 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 		return err
 	}
 	// Remove data files no longer referenced by any document.
-	if _, err := cleanupDataSubdir(dataDir, htmlSubdir, referencedHTMLKeys); err != nil {
+	if _, err := i.data.cleanup(htmlSubdir, referencedHTMLKeys); err != nil {
 		log.Warn().Err(err).Msg("failed to clean up orphaned HTML data files")
 	}
-	if _, err := cleanupDataSubdir(dataDir, faviconSubdir, referencedFaviconKeys); err != nil {
+	if _, err := i.data.cleanup(faviconSubdir, referencedFaviconKeys); err != nil {
 		log.Warn().Err(err).Msg("failed to clean up orphaned favicon data files")
 	}
 	return nil
@@ -519,12 +518,11 @@ func CleanupDataFiles(basePath string) (int, int, error) {
 		sortKey = res.Hits[n-1].Sort
 	}
 
-	dataDir := filepath.Join(basePath, dataDirName)
-	htmlRemoved, err := cleanupDataSubdir(dataDir, htmlSubdir, referencedHTMLKeys)
+	htmlRemoved, err := i.data.cleanup(htmlSubdir, referencedHTMLKeys)
 	if err != nil {
 		return htmlRemoved, 0, fmt.Errorf("failed to clean up orphaned HTML data files: %w", err)
 	}
-	faviconRemoved, err := cleanupDataSubdir(dataDir, faviconSubdir, referencedFaviconKeys)
+	faviconRemoved, err := i.data.cleanup(faviconSubdir, referencedFaviconKeys)
 	if err != nil {
 		return htmlRemoved, faviconRemoved, fmt.Errorf("failed to clean up orphaned favicon data files: %w", err)
 	}
@@ -645,17 +643,15 @@ func (i *indexer) save(d *document.Document) error {
 	if err := i.getOrCreate(d.Language).Index(d.ID(), d); err != nil {
 		return err
 	}
-	// After the index entry is updated, remove data files whose keys are no
-	// longer referenced by any document.
+	// After the index entry is updated, check whether the previous keys are
+	// still referenced and remove the files if not. Per-key shard locking in
+	// deleteIfOrphaned makes each check+delete atomic for that key without
+	// blocking unrelated keys.
 	if oldHTMLKey != "" && oldHTMLKey != d.HTMLKey {
-		if i.countKeyRefs("html_key", oldHTMLKey) == 0 {
-			i.removeDataFile(htmlSubdir, oldHTMLKey)
-		}
+		i.data.deleteIfOrphaned("html_key", htmlSubdir, oldHTMLKey, i.countKeyRefs)
 	}
 	if oldFaviconKey != "" && oldFaviconKey != d.FaviconKey {
-		if i.countKeyRefs("favicon_key", oldFaviconKey) == 0 {
-			i.removeDataFile(faviconSubdir, oldFaviconKey)
-		}
+		i.data.deleteIfOrphaned("favicon_key", faviconSubdir, oldFaviconKey, i.countKeyRefs)
 	}
 	return nil
 }
@@ -687,8 +683,7 @@ func (i *indexer) countKeyRefs(field, key string) uint64 {
 	q := bleve.NewTermQuery(key)
 	q.SetField(field)
 	req := bleve.NewSearchRequest(q)
-	req.Fields = []string{key}
-	req.Size = 1 // TODO test if we can set this to 0 - we are only interested in res.Total
+	req.Size = 0
 	res, err := i.idx.Search(req)
 	if err != nil {
 		return 1
@@ -696,23 +691,12 @@ func (i *indexer) countKeyRefs(field, key string) uint64 {
 	return res.Total
 }
 
-// removeDataFile deletes the data file identified by subdir and key,
-// logging a warning if the removal fails.
-func (i *indexer) removeDataFile(subdir, key string) {
-	path := dataFilePath(i.dataDir, subdir, key)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		log.Warn().Err(err).Str("key", key).Str("subdir", subdir).Msg("failed to remove orphaned data file")
-	} else {
-		log.Debug().Str("key", key).Str("subdir", subdir).Msg("removed orphaned data file on document update")
-	}
-}
-
 // prepareForStorage writes HTML and favicon to the data dir (if not already done)
 // and stores their SHA-256 hash keys on the document, clearing the inline fields
 // so that large blobs are not persisted inside the Bleve index.
 func (i *indexer) prepareForStorage(d *document.Document) error {
 	if d.HTML != "" && d.HTMLKey == "" {
-		key, err := writeData(i.dataDir, htmlSubdir, []byte(d.HTML))
+		key, err := i.data.write(htmlSubdir, []byte(d.HTML))
 		if err != nil {
 			return fmt.Errorf("store HTML: %w", err)
 		}
@@ -720,7 +704,7 @@ func (i *indexer) prepareForStorage(d *document.Document) error {
 		d.HTML = ""
 	}
 	if d.Favicon != "" && d.FaviconKey == "" {
-		key, err := writeData(i.dataDir, faviconSubdir, []byte(d.Favicon))
+		key, err := i.data.write(faviconSubdir, []byte(d.Favicon))
 		if err != nil {
 			return fmt.Errorf("store favicon: %w", err)
 		}
@@ -1196,7 +1180,7 @@ func (idx *indexer) resFromHit(h *search.DocumentMatch, includeText, includeHTML
 	}
 	if includeHTML {
 		if d.HTMLKey != "" {
-			data, err := readData(idx.dataDir, htmlSubdir, d.HTMLKey)
+			data, err := idx.data.read(htmlSubdir, d.HTMLKey)
 			if err != nil {
 				log.Warn().Err(err).Str("key", d.HTMLKey).Msg("failed to load HTML from data store")
 			} else {
@@ -1208,7 +1192,7 @@ func (idx *indexer) resFromHit(h *search.DocumentMatch, includeText, includeHTML
 		}
 	}
 	if d.FaviconKey != "" {
-		data, err := readData(idx.dataDir, faviconSubdir, d.FaviconKey)
+		data, err := idx.data.read(faviconSubdir, d.FaviconKey)
 		if err != nil {
 			log.Warn().Err(err).Str("key", d.FaviconKey).Msg("failed to load favicon from data store")
 		} else {
