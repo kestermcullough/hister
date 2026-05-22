@@ -1591,10 +1591,11 @@ func getDBPaths() []browserDB {
 
 	chromium_table := "urls"
 	firefox_table := "moz_places"
+	ladybird_table := "History"
 
 	switch runtime.GOOS {
 	default:
-		log.Fatal().Msgf("Failed to dectect os")
+		log.Fatal().Msgf("Failed to detect os")
 	case "darwin":
 		candidates = []browserDBCandidates{
 			// firefox
@@ -1625,6 +1626,13 @@ func getDBPaths() []browserDB {
 				firefox_table,
 				[]string{
 					filepath.Join(home, "Library", "Application Support", "Waterfox", "Profiles", "*.default*", "places.sqlite"),
+				},
+			},
+			{
+				"Ladybird",
+				ladybird_table,
+				[]string{
+					filepath.Join(home, "Library", "Application Support", "Ladybird", "History.db"),
 				},
 			},
 			{
@@ -1779,6 +1787,13 @@ func getDBPaths() []browserDB {
 				},
 			},
 			{
+				"Ladybird",
+				ladybird_table,
+				[]string{
+					filepath.Join(home, ".local", "share", "Ladybird", "History.db"),
+				},
+			},
+			{
 				"Chrome",
 				chromium_table,
 				[]string{
@@ -1829,8 +1844,8 @@ func getDBPaths() []browserDB {
 	var dbFiles []browserDB
 	var paths []string
 
-	for _, canidate := range candidates {
-		for _, globs := range canidate.paths_candidates {
+	for _, candidate := range candidates {
+		for _, globs := range candidate.paths_candidates {
 			matches, _ := filepath.Glob(globs)
 			for _, p := range matches {
 				if _, err := os.Stat(p); err == nil {
@@ -1840,7 +1855,7 @@ func getDBPaths() []browserDB {
 		}
 
 		if len(paths) != 0 {
-			dbFiles = append(dbFiles, browserDB{canidate.name, canidate.table_name, paths})
+			dbFiles = append(dbFiles, browserDB{candidate.name, candidate.table_name, paths})
 		}
 		paths = []string{}
 	}
