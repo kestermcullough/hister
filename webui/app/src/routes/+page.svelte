@@ -1354,7 +1354,7 @@
     <div class="flex min-h-0 flex-1 overflow-hidden" bind:this={splitContainerEl}>
       {#if !previewFullscreen}
         <ScrollArea class="min-h-0 flex-1">
-          <div class="w-full max-w-[70em] space-y-3 overflow-x-hidden px-3 py-2 md:px-12">
+          <div class="w-full max-w-[70em] space-y-3 overflow-x-hidden px-3 py-2 md:px-6">
             {#if deleteError}
               <div
                 class="border-hister-rose bg-hister-rose/10 text-hister-rose flex items-center justify-between gap-2 border-[2px] px-3 py-2 text-sm"
