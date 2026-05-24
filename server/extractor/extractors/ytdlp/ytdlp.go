@@ -2,6 +2,7 @@
 package ytdlp
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -212,10 +213,14 @@ func (e *YtdlpExtractor) fetchInfo(videoURL string) (*videoInfo, error) {
 
 	// #nosec G204 -- binary path and args are admin-configured, not user input.
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	log.Debug().Str("args", strings.Join(cmd.Args, " ")).Msg("yt-dlp executing")
 	out, err := cmd.Output()
+	log.Debug().Str("stdout", strings.TrimSpace(string(out))).Str("stderr", strings.TrimSpace(stderr.String())).Msg("yt-dlp output")
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
-			return nil, fmt.Errorf("yt-dlp failed: %w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		if s := stderr.String(); s != "" {
+			return nil, fmt.Errorf("yt-dlp failed: %w: %s", err, strings.TrimSpace(s))
 		}
 		return nil, fmt.Errorf("yt-dlp failed: %w", err)
 	}
