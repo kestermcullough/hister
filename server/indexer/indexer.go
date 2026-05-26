@@ -648,27 +648,9 @@ func (i *indexer) save(d *document.Document) error {
 		return err
 	}
 	log.Debug().Str("URL", d.URL).Msg("item added to index")
-	// Remove the document from every sub-index before writing it to the
-	// language-routed one. Without this, a language change (e.g. "en" on
-	// first add, "de" on re-add) leaves a stale entry in the old sub-index
-	// that keeps the old html_key/favicon_key reference count at 1, preventing
-	// orphaned file cleanup and eventually creating true orphans when
-	// subsequent re-adds miss the stale entry as the "old" keys.
-	// Skip for new documents (no old keys) — nothing to delete.
-	if len(oldHTMLKeys) > 0 || len(oldFaviconKeys) > 0 {
-		for _, idx := range i.indexers {
-			if err := idx.Delete(d.ID()); err != nil {
-				return err
-			}
-		}
-	}
 	if err := i.getOrCreate(d.Language).Index(d.ID(), d); err != nil {
 		return err
 	}
-	// All old sub-index entries are now gone so countKeyRefs correctly
-	// reflects only genuine cross-document sharing. Clean up every old key
-	// that is no longer the current one — this handles stale cross-sub-index
-	// entries where getDocKeysByID may have returned multiple keys.
 	for _, k := range oldHTMLKeys {
 		if k != d.HTMLKey {
 			i.data.deleteIfOrphaned("html_key", htmlSubdir, k, i.countKeyRefs)
