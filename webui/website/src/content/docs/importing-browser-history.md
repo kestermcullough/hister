@@ -58,19 +58,21 @@ Examples for Chrome: (note that some parts _will_ be different for you!)
 
 ### Auto Detection
 
-Run `hister import-browser` with no arguments to auto-detect browser histories. Hister will find histories for Firefox, Firefox Developer Edition, Zen, Waterfox, Chrome, Chromium, Brave, Vivaldi, Edge and Opera if they are in the standard locations.
+Run `hister import-browser auto-detect` with no arguments to auto-detect browser histories. Hister will find histories for Firefox, Firefox Developer Edition, Zen, Waterfox, Chrome, Chromium, Brave, Vivaldi, Edge, Opera and Ladybird if they are in the standard locations.
 
 ### Manual
 
-Run `hister import-browser [browser] [path]` to target a specific browser or database file:
+Run `hister import-browser [operation] [arg1] [arg2]` to target a specific browser or database file:
 
-- `[browser]` is optional: either `firefox` or `chrome`. Omit to auto-detect.
-- `[path]` is optional: path to the browser history database. Omit to use the default location for the given browser.
+- `[operation]` is required: 
+  - `auto-detect`: for auto-detecting
+  - `browser`: arg1: the browser, arg2: database file; Omit to auto-detect
+  - `file`: arg1: the database file, arg2 is not needed
 
 For example:
 
 ```bash
-hister import-browser firefox ~/.mozilla/firefox/abc123.default/places.sqlite
+hister import-browser browser firefox ~/.mozilla/firefox/abc123.default/places.sqlite
 ```
 
 This will print a count of how many (unique) URLs have been detected, and ask for confirmation before proceeding (press Enter to submit your choice, `Y` being the default).
