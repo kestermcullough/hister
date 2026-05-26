@@ -121,16 +121,17 @@ sensitive_content_patterns:
 
 ## `app` Section
 
-| Key                       | Type   | Default                               | Description                                                                                                    |
-| ------------------------- | ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                             |
-| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                 |
-| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                 |
-| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                  |
-| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                       |
-| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                              |
-| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                           |
-| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister. |
+| Key                       | Type   | Default                               | Description                                                                                                                             |
+| ------------------------- | ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                                                      |
+| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                                          |
+| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                          |
+| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                           |
+| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                |
+| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                       |
+| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                    |
+| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                          |
+| `disable_previews`        | bool   | `false`                               | Disable the preview panel entirely. No HTML is stored on disk, and the preview UI is hidden. See [Disable Previews](#disable-previews). |
 
 ## `server` Section
 
@@ -309,6 +310,23 @@ Changes to indexed directories are picked up automatically by the file watcher, 
 When `delete_on_remove: true` is set on a directory, deleting or renaming a file on the filesystem also removes it from the index automatically. This is opt-in and disabled by default.
 
 No reindex is required when adding or removing files. Files are detected and indexed automatically.
+
+## Disable Previews
+
+By default, Hister stores the full HTML content of every indexed page on disk and makes it available in a split-pane preview panel in the search and history UI. Setting `disable_previews: true` turns this off completely:
+
+- HTML content is **never written to disk** during indexing or re-indexing. Only the extracted plain text, title, URL, domain, language, and favicon are kept.
+- Running `hister reindex` with this option enabled will delete all previously stored HTML files, reclaiming disk space.
+- The preview panel, the per-result **view** button, and the **Preview** toggle are hidden in the web UI.
+
+This is useful when disk space is limited or when you prefer not to retain full page snapshots.
+
+```yaml
+app:
+  disable_previews: true
+```
+
+> **Note**: Favicons are unaffected by this setting and are always stored.
 
 ## Access Token
 

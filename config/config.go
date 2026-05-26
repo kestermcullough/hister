@@ -55,6 +55,7 @@ type App struct {
 	OpenResultsOnNewTab    bool   `yaml:"open_results_on_new_tab" mapstructure:"open_results_on_new_tab"`
 	RedirectOnNoResults    bool   `yaml:"redirect_on_no_results" mapstructure:"redirect_on_no_results"`
 	DisplayExtractorConfig bool   `yaml:"display_extractor_config" mapstructure:"display_extractor_config"`
+	DisablePreviews        bool   `yaml:"disable_previews" mapstructure:"disable_previews"`
 }
 
 type TUI struct {

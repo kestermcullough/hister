@@ -103,6 +103,7 @@
   let popupUrl = $state('');
   let popupHintTitle = $state('');
   let previewFullscreen = $state(false);
+  let disablePreviews = $state(false);
 
   // Desktop split-pane readability panel state
   let panelUrl = $state('');
@@ -1123,6 +1124,7 @@
         similarityThreshold: (appConfig as any).similarityThreshold ?? 0.1,
         semanticWeight: (appConfig as any).semanticWeight ?? 0.4,
       };
+      disablePreviews = (appConfig as any).disablePreviews ?? false;
       if (config.semanticEnabled) {
         // Apply server defaults only when the user has not yet customised these.
         if (localStorage.getItem('hister-semantic-threshold') === null)
@@ -1375,7 +1377,7 @@
                     : lastResults?.total || totalResults} results{query ? ` for "${query}"` : ''}
                 </span>
                 <div class="flex items-center gap-2">
-                  {#if isDesktop && !panelOpen}
+                  {#if isDesktop && !panelOpen && !disablePreviews}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1673,18 +1675,20 @@
                             <Tag class="mr-0.5 size-2.5 shrink-0" />{state.displayLabel}
                           </Badge>
                         {/if}
-                        <Button
-                          data-readable
-                          variant="link"
-                          size="sm"
-                          class="text-hister-indigo h-auto shrink-0 cursor-pointer gap-0.5 p-0 text-xs font-medium md:text-sm"
-                          onclick={(e) => {
-                            highlightIdx = i;
-                            openReadable(e, r.url, r.title || '*title*');
-                          }}
-                        >
-                          <Eye class="size-3" /><span>view</span>
-                        </Button>
+                        {#if !disablePreviews}
+                          <Button
+                            data-readable
+                            variant="link"
+                            size="sm"
+                            class="text-hister-indigo h-auto shrink-0 cursor-pointer gap-0.5 p-0 text-xs font-medium md:text-sm"
+                            onclick={(e) => {
+                              highlightIdx = i;
+                              openReadable(e, r.url, r.title || '*title*');
+                            }}
+                          >
+                            <Eye class="size-3" /><span>view</span>
+                          </Button>
+                        {/if}
                         {#if !r.isPinned && r.finalScore && config.semanticEnabled && semanticOn}
                           <Tooltip.Provider delayDuration={0}>
                             <Tooltip.Root>
@@ -1746,35 +1750,37 @@
       {/if}
 
       <!-- Preview panel: fullscreen (both mobile and desktop) or split-pane (desktop only) -->
-      {#if previewFullscreen}
-        <PreviewPanel
-          url={panelUrl}
-          hintTitle={panelHintTitle}
-          fullscreen={true}
-          onclose={closePanelAndFullscreen}
-          onfullscreentoggle={isDesktop ? exitFullscreen : undefined}
-        />
-      {:else if lastResults && panelOpen && isDesktop}
-        <!-- Drag handle to resize the split-screen panel -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          class="hover:bg-hister-indigo/40 w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors"
-          onmousedown={startPanelResize}
-          role="separator"
-          aria-label="Resize preview panel"
-        ></div>
-        <div style="width: {panelWidthPct}%; flex: none;" class="flex min-h-0 overflow-hidden">
+      {#if !disablePreviews}
+        {#if previewFullscreen}
           <PreviewPanel
             url={panelUrl}
             hintTitle={panelHintTitle}
-            fullscreen={false}
-            onclose={() => {
-              panelOpen = false;
-              localStorage.setItem('hister-panel-open', 'false');
-            }}
-            onfullscreentoggle={enterFullscreen}
+            fullscreen={true}
+            onclose={closePanelAndFullscreen}
+            onfullscreentoggle={isDesktop ? exitFullscreen : undefined}
           />
-        </div>
+        {:else if lastResults && panelOpen && isDesktop}
+          <!-- Drag handle to resize the split-screen panel -->
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+          <div
+            class="hover:bg-hister-indigo/40 w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors"
+            onmousedown={startPanelResize}
+            role="separator"
+            aria-label="Resize preview panel"
+          ></div>
+          <div style="width: {panelWidthPct}%; flex: none;" class="flex min-h-0 overflow-hidden">
+            <PreviewPanel
+              url={panelUrl}
+              hintTitle={panelHintTitle}
+              fullscreen={false}
+              onclose={() => {
+                panelOpen = false;
+                localStorage.setItem('hister-panel-open', 'false');
+              }}
+              onfullscreentoggle={enterFullscreen}
+            />
+          </div>
+        {/if}
       {/if}
     </div>
   </div>

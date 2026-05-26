@@ -55,6 +55,7 @@ type indexer struct {
 	embedCtx          context.Context
 	embedCancel       context.CancelFunc
 	embedWg           sync.WaitGroup // tracks in-flight async embeddings
+	disablePreviews   bool
 }
 
 const (
@@ -238,6 +239,7 @@ func Init(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+	i.disablePreviews = cfg.App.DisablePreviews
 	if cfg.SemanticSearch.Enable {
 		vs, err := vectorstore.New(cfg)
 		if err != nil {
@@ -336,6 +338,8 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 	if err != nil {
 		return err
 	}
+	// Propagate the disablePreviews flag so the temp indexer skips HTML storage too.
+	tmpIdx.disablePreviews = idx.disablePreviews
 	// The data store is shared between the live and temp indexers so that
 	// content-addressed files written during reindex are immediately usable
 	// after the rename step. No data directory rename is needed.
@@ -470,6 +474,8 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 	if err != nil {
 		return err
 	}
+	// Restore settings that are not part of the index state.
+	i.disablePreviews = idx.disablePreviews
 	// Restore the vector store and embedder on the newly initialized global indexer.
 	if vs != nil && embedder != nil {
 		i.vectorStore = vs
@@ -715,8 +721,12 @@ func (i *indexer) countKeyRefs(field, key string) uint64 {
 // prepareForStorage writes HTML and favicon to the data dir (if not already done)
 // and stores their SHA-256 hash keys on the document, clearing the inline fields
 // so that large blobs are not persisted inside the Bleve index.
+// When disablePreviews is true, HTML is discarded entirely and HTMLKey is cleared.
 func (i *indexer) prepareForStorage(d *document.Document) error {
-	if d.HTML != "" && d.HTMLKey == "" {
+	if i.disablePreviews {
+		d.HTML = ""
+		d.HTMLKey = ""
+	} else if d.HTML != "" && d.HTMLKey == "" {
 		key, err := i.data.write(htmlSubdir, []byte(d.HTML))
 		if err != nil {
 			return fmt.Errorf("store HTML: %w", err)

@@ -48,6 +48,7 @@
       : true,
   );
   let previewFullscreen = $state(false);
+  let disablePreviews = $state(false);
   const skipUrl = { value: false };
   let panelWidthPct = $state(parseFloat(localStorage.getItem('hister-panel-width') ?? '') || 50);
   let splitContainerEl: HTMLDivElement | undefined = $state();
@@ -431,6 +432,7 @@
     const cfg = await fetchConfig();
     openResultsOnNewTab = (cfg as any).openResultsOnNewTab ?? false;
     keyHandler = new KeyHandler((cfg as any).hotkeys ?? {}, hotkeyActions);
+    disablePreviews = (cfg as any).disablePreviews ?? false;
   });
 
   // Reset highlight when filtered list changes
@@ -668,17 +670,19 @@
                         </div>
                       </div>
                       <nav class="flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted hover:text-hister-teal size-7 shrink-0"
-                          onclick={() => {
-                            highlightIdx = flatIdx;
-                            openPreview(item.url, item.title || item.url);
-                          }}
-                        >
-                          <Eye class="size-3.5" />
-                        </Button>
+                        {#if !disablePreviews}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            class="text-text-brand-muted hover:text-hister-teal size-7 shrink-0"
+                            onclick={() => {
+                              highlightIdx = flatIdx;
+                              openPreview(item.url, item.title || item.url);
+                            }}
+                          >
+                            <Eye class="size-3.5" />
+                          </Button>
+                        {/if}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -704,35 +708,37 @@
       {/if}
 
       <!-- Preview panel: fullscreen (both mobile and desktop) or split-pane (desktop only) -->
-      {#if previewFullscreen}
-        <PreviewPanel
-          url={panelUrl}
-          hintTitle={panelHintTitle}
-          fullscreen={true}
-          onclose={closePanelAndFullscreen}
-          onfullscreentoggle={isDesktop ? exitFullscreen : undefined}
-        />
-      {:else if panelOpen && isDesktop}
-        <!-- Drag handle to resize the split-screen panel -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          class="hover:bg-hister-indigo/40 w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors"
-          onmousedown={startPanelResize}
-          role="separator"
-          aria-label="Resize preview panel"
-        ></div>
-        <div style="width: {panelWidthPct}%; flex: none;" class="flex min-h-0 overflow-hidden">
+      {#if !disablePreviews}
+        {#if previewFullscreen}
           <PreviewPanel
             url={panelUrl}
             hintTitle={panelHintTitle}
-            fullscreen={false}
-            onclose={() => {
-              panelOpen = false;
-              localStorage.setItem('hister-history-panel-open', 'false');
-            }}
-            onfullscreentoggle={enterFullscreen}
+            fullscreen={true}
+            onclose={closePanelAndFullscreen}
+            onfullscreentoggle={isDesktop ? exitFullscreen : undefined}
           />
-        </div>
+        {:else if panelOpen && isDesktop}
+          <!-- Drag handle to resize the split-screen panel -->
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+          <div
+            class="hover:bg-hister-indigo/40 w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors"
+            onmousedown={startPanelResize}
+            role="separator"
+            aria-label="Resize preview panel"
+          ></div>
+          <div style="width: {panelWidthPct}%; flex: none;" class="flex min-h-0 overflow-hidden">
+            <PreviewPanel
+              url={panelUrl}
+              hintTitle={panelHintTitle}
+              fullscreen={false}
+              onclose={() => {
+                panelOpen = false;
+                localStorage.setItem('hister-history-panel-open', 'false');
+              }}
+              onfullscreentoggle={enterFullscreen}
+            />
+          </div>
+        {/if}
       {/if}
     </div>
   </div>

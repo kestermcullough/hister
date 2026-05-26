@@ -618,6 +618,7 @@ func serveConfig(c *webContext) {
 		SimilarityThreshold float64           `json:"similarityThreshold,omitempty"`
 		OAuthProviders      []string          `json:"oauthProviders,omitempty"`
 		OAuthOnly           bool              `json:"oauthOnly,omitempty"`
+		DisablePreviews     bool              `json:"disablePreviews,omitempty"`
 	}
 	authMode := "none"
 	authenticated := true
@@ -663,6 +664,7 @@ func serveConfig(c *webContext) {
 		SimilarityThreshold: c.Config.SemanticSearch.SimilarityThreshold,
 		OAuthProviders:      oauthProviders,
 		OAuthOnly:           c.Config.Server.OAuthOnly,
+		DisablePreviews:     c.Config.App.DisablePreviews,
 	})
 }
 

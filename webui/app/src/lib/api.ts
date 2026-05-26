@@ -7,6 +7,7 @@ export interface AppConfig {
   username?: string;
   userId?: number;
   oauthOnly?: boolean;
+  disablePreviews?: boolean;
 }
 
 export interface ExtractorInfo {
