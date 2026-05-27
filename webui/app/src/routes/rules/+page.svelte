@@ -1,5 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { Action } from 'svelte/action';
+
+  const focusInput: Action<HTMLElement> = (node) => {
+    (node.querySelector('input') as HTMLInputElement | null)?.focus();
+  };
   import { fetchConfig, apiFetch } from '$lib/api';
   import { Button } from '@hister/components/ui/button';
   import { Input } from '@hister/components/ui/input';
@@ -352,15 +357,16 @@
     {#if open}
       <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
         <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
-          <Input
-            type="text"
-            variant="brutal"
-            value={filterValue}
-            oninput={(e) => setFilter((e.target as HTMLInputElement).value)}
-            {placeholder}
-            autofocus
-            class="bg-card-surface h-8 w-full px-3 text-sm font-normal {focusClass}"
-          />
+          <div use:focusInput>
+            <Input
+              type="text"
+              variant="brutal"
+              value={filterValue}
+              oninput={(e) => setFilter((e.target as HTMLInputElement).value)}
+              {placeholder}
+              class="bg-card-surface h-8 w-full px-3 text-sm font-normal {focusClass}"
+            />
+          </div>
         </Table.Head>
       </Table.Row>
     {/if}
