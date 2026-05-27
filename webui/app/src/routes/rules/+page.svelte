@@ -332,6 +332,78 @@
     </Alert.Root>
   {/if}
 
+  {#snippet filterToggleButton(open: boolean, activeClass: string, hoverClass: string, toggle: () => void)}
+    <button
+      type="button"
+      onclick={toggle}
+      class="font-space text-text-brand-muted {hoverClass} flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {open
+        ? activeClass
+        : ''}"
+    >
+      <Search class="size-3" />Filter
+    </button>
+  {/snippet}
+
+  {#snippet filterInputRow(open: boolean, filterValue: string, setFilter: (v: string) => void, placeholder: string, focusClass: string)}
+    {#if open}
+      <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
+        <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
+          <Input
+            type="text"
+            variant="brutal"
+            value={filterValue}
+            oninput={(e) => setFilter((e.target as HTMLInputElement).value)}
+            {placeholder}
+            autofocus
+            class="bg-card-surface h-8 w-full px-3 text-sm font-normal {focusClass}"
+          />
+        </Table.Head>
+      </Table.Row>
+    {/if}
+  {/snippet}
+
+  {#snippet editCancelButtons(onSave: () => void, onCancel: () => void)}
+    <div class="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="text-hister-teal shrink-0 transition-colors"
+        onclick={onSave}
+      >
+        <Check class="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="text-text-brand-muted shrink-0 transition-colors"
+        onclick={onCancel}
+      >
+        <X class="size-4" />
+      </Button>
+    </div>
+  {/snippet}
+
+  {#snippet editDeleteButtons(onEdit: () => void, onDelete: () => void, editHoverClass: string)}
+    <div class="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="text-text-brand-muted shrink-0 transition-colors {editHoverClass}"
+        onclick={onEdit}
+      >
+        <Pencil class="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="text-text-brand-muted hover:text-hister-rose shrink-0 transition-colors"
+        onclick={onDelete}
+      >
+        <Trash2 class="size-4" />
+      </Button>
+    </div>
+  {/snippet}
+
   {#if loading}
     <div class="flex items-center justify-center py-16">
       <p class="font-inter text-text-brand-muted text-lg">Loading rules...</p>
@@ -408,34 +480,10 @@
                   >Expands to</Table.Head
                 >
                 <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
-                  <button
-                    type="button"
-                    onclick={() => {
-                      aliasFilterOpen = !aliasFilterOpen;
-                      if (!aliasFilterOpen) aliasFilter = '';
-                    }}
-                    class="font-space text-text-brand-muted hover:text-hister-indigo flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {aliasFilterOpen
-                      ? 'text-hister-indigo'
-                      : ''}"
-                  >
-                    <Search class="size-3" />Filter
-                  </button>
+                  {@render filterToggleButton(aliasFilterOpen, 'text-hister-indigo', 'hover:text-hister-indigo', () => { aliasFilterOpen = !aliasFilterOpen; if (!aliasFilterOpen) aliasFilter = ''; })}
                 </Table.Head>
               </Table.Row>
-              {#if aliasFilterOpen}
-                <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
-                  <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
-                    <Input
-                      type="text"
-                      variant="brutal"
-                      bind:value={aliasFilter}
-                      placeholder="Filter aliases..."
-                      autofocus
-                      class="bg-card-surface focus-visible:border-hister-indigo h-8 w-full px-3 text-sm font-normal"
-                    />
-                  </Table.Head>
-                </Table.Row>
-              {/if}
+              {@render filterInputRow(aliasFilterOpen, aliasFilter, (v) => aliasFilter = v, 'Filter aliases...', 'focus-visible:border-hister-indigo')}
             </Table.Header>
             <Table.Body>
               {#each filteredAliases as [keyword, value]}
@@ -462,24 +510,7 @@
                       </div>
                     </Table.Cell>
                     <Table.Cell class="w-16 px-1 py-2 md:w-20 md:px-3">
-                      <div class="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-hister-teal shrink-0 transition-colors"
-                          onclick={saveEditAlias}
-                        >
-                          <Check class="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted shrink-0 transition-colors"
-                          onclick={cancelEditAlias}
-                        >
-                          <X class="size-4" />
-                        </Button>
-                      </div>
+                      {@render editCancelButtons(saveEditAlias, cancelEditAlias)}
                     </Table.Cell>
                   {:else}
                     <Table.Cell
@@ -491,24 +522,7 @@
                       >{value}</Table.Cell
                     >
                     <Table.Cell class="w-16 px-1 py-3 md:w-20 md:px-3">
-                      <div class="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted hover:text-hister-indigo shrink-0 transition-colors"
-                          onclick={() => startEditAlias(keyword, value)}
-                        >
-                          <Pencil class="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted hover:text-hister-rose shrink-0 transition-colors"
-                          onclick={() => deleteAlias(keyword)}
-                        >
-                          <Trash2 class="size-4" />
-                        </Button>
-                      </div>
+                      {@render editDeleteButtons(() => startEditAlias(keyword, value), () => deleteAlias(keyword), 'hover:text-hister-indigo')}
                     </Table.Cell>
                   {/if}
                 </Table.Row>
@@ -606,34 +620,10 @@
                   >Type</Table.Head
                 >
                 <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
-                  <button
-                    type="button"
-                    onclick={() => {
-                      ruleFilterOpen = !ruleFilterOpen;
-                      if (!ruleFilterOpen) ruleFilter = '';
-                    }}
-                    class="font-space text-text-brand-muted hover:text-hister-coral flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {ruleFilterOpen
-                      ? 'text-hister-coral'
-                      : ''}"
-                  >
-                    <Search class="size-3" />Filter
-                  </button>
+                  {@render filterToggleButton(ruleFilterOpen, 'text-hister-coral', 'hover:text-hister-coral', () => { ruleFilterOpen = !ruleFilterOpen; if (!ruleFilterOpen) ruleFilter = ''; })}
                 </Table.Head>
               </Table.Row>
-              {#if ruleFilterOpen}
-                <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
-                  <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
-                    <Input
-                      type="text"
-                      variant="brutal"
-                      bind:value={ruleFilter}
-                      placeholder="Filter rules..."
-                      autofocus
-                      class="bg-card-surface focus-visible:border-hister-coral h-8 w-full px-3 text-sm font-normal"
-                    />
-                  </Table.Head>
-                </Table.Row>
-              {/if}
+              {@render filterInputRow(ruleFilterOpen, ruleFilter, (v) => ruleFilter = v, 'Filter rules...', 'focus-visible:border-hister-coral')}
             </Table.Header>
             <Table.Body>
               {#each filteredRuleRows as { row, i }}
@@ -662,24 +652,7 @@
                       </div>
                     </Table.Cell>
                     <Table.Cell class="w-16 px-1 py-2 md:w-20 md:px-3">
-                      <div class="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-hister-teal shrink-0 transition-colors"
-                          onclick={saveEditRule}
-                        >
-                          <Check class="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted shrink-0 transition-colors"
-                          onclick={cancelEditRule}
-                        >
-                          <X class="size-4" />
-                        </Button>
-                      </div>
+                      {@render editCancelButtons(saveEditRule, cancelEditRule)}
                     </Table.Cell>
                   {:else}
                     <Table.Cell
@@ -700,24 +673,7 @@
                       </Badge>
                     </Table.Cell>
                     <Table.Cell class="w-16 px-1 py-3 md:w-20 md:px-3">
-                      <div class="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted hover:text-hister-coral shrink-0 transition-colors"
-                          onclick={() => startEditRule(i)}
-                        >
-                          <Pencil class="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          class="text-text-brand-muted hover:text-hister-rose shrink-0 transition-colors"
-                          onclick={() => removeRule(row.pattern, row.type)}
-                        >
-                          <Trash2 class="size-4" />
-                        </Button>
-                      </div>
+                      {@render editDeleteButtons(() => startEditRule(i), () => removeRule(row.pattern, row.type), 'hover:text-hister-coral')}
                     </Table.Cell>
                   {/if}
                 </Table.Row>
