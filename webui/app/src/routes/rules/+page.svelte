@@ -332,19 +332,23 @@
     </Alert.Root>
   {/if}
 
-  {#snippet filterToggleButton(open: boolean, activeClass: string, hoverClass: string, toggle: () => void)}
-    <button
-      type="button"
+  {#snippet filterToggleButton(colorClass: string, toggle: () => void)}
+    <Button
+      size="sm"
       onclick={toggle}
-      class="font-space text-text-brand-muted {hoverClass} flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {open
-        ? activeClass
-        : ''}"
+      class="font-space border-brutal-border brutal-press h-8 gap-1.5 border-[3px] px-3 text-xs font-bold tracking-[1px] uppercase {colorClass}"
     >
       <Search class="size-3" />Filter
-    </button>
+    </Button>
   {/snippet}
 
-  {#snippet filterInputRow(open: boolean, filterValue: string, setFilter: (v: string) => void, placeholder: string, focusClass: string)}
+  {#snippet filterInputRow(
+    open: boolean,
+    filterValue: string,
+    setFilter: (v: string) => void,
+    placeholder: string,
+    focusClass: string,
+  )}
     {#if open}
       <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
         <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
@@ -480,10 +484,19 @@
                   >Expands to</Table.Head
                 >
                 <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
-                  {@render filterToggleButton(aliasFilterOpen, 'text-hister-indigo', 'hover:text-hister-indigo', () => { aliasFilterOpen = !aliasFilterOpen; if (!aliasFilterOpen) aliasFilter = ''; })}
+                  {@render filterToggleButton('bg-hister-indigo text-background', () => {
+                    aliasFilterOpen = !aliasFilterOpen;
+                    if (!aliasFilterOpen) aliasFilter = '';
+                  })}
                 </Table.Head>
               </Table.Row>
-              {@render filterInputRow(aliasFilterOpen, aliasFilter, (v) => aliasFilter = v, 'Filter aliases...', 'focus-visible:border-hister-indigo')}
+              {@render filterInputRow(
+                aliasFilterOpen,
+                aliasFilter,
+                (v) => (aliasFilter = v),
+                'Filter aliases...',
+                'focus-visible:border-hister-indigo',
+              )}
             </Table.Header>
             <Table.Body>
               {#each filteredAliases as [keyword, value]}
@@ -522,7 +535,11 @@
                       >{value}</Table.Cell
                     >
                     <Table.Cell class="w-16 px-1 py-3 md:w-20 md:px-3">
-                      {@render editDeleteButtons(() => startEditAlias(keyword, value), () => deleteAlias(keyword), 'hover:text-hister-indigo')}
+                      {@render editDeleteButtons(
+                        () => startEditAlias(keyword, value),
+                        () => deleteAlias(keyword),
+                        'hover:text-hister-indigo',
+                      )}
                     </Table.Cell>
                   {/if}
                 </Table.Row>
@@ -620,10 +637,19 @@
                   >Type</Table.Head
                 >
                 <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
-                  {@render filterToggleButton(ruleFilterOpen, 'text-hister-coral', 'hover:text-hister-coral', () => { ruleFilterOpen = !ruleFilterOpen; if (!ruleFilterOpen) ruleFilter = ''; })}
+                  {@render filterToggleButton('bg-hister-coral text-background', () => {
+                    ruleFilterOpen = !ruleFilterOpen;
+                    if (!ruleFilterOpen) ruleFilter = '';
+                  })}
                 </Table.Head>
               </Table.Row>
-              {@render filterInputRow(ruleFilterOpen, ruleFilter, (v) => ruleFilter = v, 'Filter rules...', 'focus-visible:border-hister-coral')}
+              {@render filterInputRow(
+                ruleFilterOpen,
+                ruleFilter,
+                (v) => (ruleFilter = v),
+                'Filter rules...',
+                'focus-visible:border-hister-coral',
+              )}
             </Table.Header>
             <Table.Body>
               {#each filteredRuleRows as { row, i }}
@@ -673,7 +699,11 @@
                       </Badge>
                     </Table.Cell>
                     <Table.Cell class="w-16 px-1 py-3 md:w-20 md:px-3">
-                      {@render editDeleteButtons(() => startEditRule(i), () => removeRule(row.pattern, row.type), 'hover:text-hister-coral')}
+                      {@render editDeleteButtons(
+                        () => startEditRule(i),
+                        () => removeRule(row.pattern, row.type),
+                        'hover:text-hister-coral',
+                      )}
                     </Table.Cell>
                   {/if}
                 </Table.Row>
