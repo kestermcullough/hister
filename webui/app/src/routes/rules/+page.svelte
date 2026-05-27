@@ -6,7 +6,7 @@
   import { Badge } from '@hister/components/ui/badge';
   import * as Card from '@hister/components/ui/card';
   import * as Table from '@hister/components/ui/table';
-  import { Shield, Link2, Plus, Trash2, Pencil, Check, X } from '@lucide/svelte';
+  import { Shield, Link2, Plus, Trash2, Pencil, Check, X, Search } from '@lucide/svelte';
   import { PageHeader } from '@hister/components';
   import { Label } from '@hister/components/ui/label';
   import * as Alert from '@hister/components/ui/alert';
@@ -45,12 +45,34 @@
   let editRulePattern = $state('');
   let editRuleType: 'skip' | 'priority' | 'versioning' = $state('skip');
 
+  // Filter state
+  let aliasFilterOpen = $state(false);
+  let aliasFilter = $state('');
+  let ruleFilterOpen = $state(false);
+  let ruleFilter = $state('');
+
   const ruleRows = $derived.by(() => {
     const rows: RuleRow[] = [];
     for (const p of rules.skip) rows.push({ pattern: p, type: 'skip' });
     for (const p of rules.priority) rows.push({ pattern: p, type: 'priority' });
     for (const p of rules.versioning) rows.push({ pattern: p, type: 'versioning' });
     return rows;
+  });
+
+  const filteredAliases = $derived.by(() => {
+    const q = aliasFilter.trim().toLowerCase();
+    const entries = Object.entries(rules.aliases);
+    if (!q) return entries;
+    return entries.filter(([k, v]) => k.toLowerCase().includes(q) || v.toLowerCase().includes(q));
+  });
+
+  const filteredRuleRows = $derived.by(() => {
+    const q = ruleFilter.trim().toLowerCase();
+    const indexed = ruleRows.map((row, i) => ({ row, i }));
+    if (!q) return indexed;
+    return indexed.filter(
+      ({ row }) => row.pattern.toLowerCase().includes(q) || row.type.includes(q),
+    );
   });
 
   onMount(async () => {
@@ -385,11 +407,38 @@
                   class="font-space text-text-brand-muted h-auto px-2 py-3 text-xs font-bold tracking-[1px] uppercase md:px-5"
                   >Expands to</Table.Head
                 >
-                <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5"></Table.Head>
+                <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
+                  <button
+                    type="button"
+                    onclick={() => {
+                      aliasFilterOpen = !aliasFilterOpen;
+                      if (!aliasFilterOpen) aliasFilter = '';
+                    }}
+                    class="font-space text-text-brand-muted hover:text-hister-indigo flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {aliasFilterOpen
+                      ? 'text-hister-indigo'
+                      : ''}"
+                  >
+                    <Search class="size-3" />Filter
+                  </button>
+                </Table.Head>
               </Table.Row>
+              {#if aliasFilterOpen}
+                <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
+                  <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
+                    <Input
+                      type="text"
+                      variant="brutal"
+                      bind:value={aliasFilter}
+                      placeholder="Filter aliases..."
+                      autofocus
+                      class="bg-card-surface focus-visible:border-hister-indigo h-8 w-full px-3 text-sm font-normal"
+                    />
+                  </Table.Head>
+                </Table.Row>
+              {/if}
             </Table.Header>
             <Table.Body>
-              {#each Object.entries(rules.aliases) as [keyword, value]}
+              {#each filteredAliases as [keyword, value]}
                 <Table.Row class="border-brutal-border border-b-[3px]">
                   {#if editingAliasKey === keyword}
                     <Table.Cell class="px-2 py-2 md:px-3" colspan={2}>
@@ -467,7 +516,7 @@
             </Table.Body>
           </Table.Root>
 
-          {#if Object.keys(rules.aliases).length === 0}
+          {#if filteredAliases.length === 0}
             <div class="flex flex-col items-center justify-center gap-3 py-10">
               <div
                 class="flex h-12 w-12 items-center justify-center"
@@ -475,7 +524,9 @@
               >
                 <Link2 class="size-5" />
               </div>
-              <p class="font-inter text-text-brand-muted text-sm">No aliases defined yet.</p>
+              <p class="font-inter text-text-brand-muted text-sm">
+                {aliasFilter ? 'No aliases match the filter.' : 'No aliases defined yet.'}
+              </p>
             </div>
           {/if}
         </Card.Content>
@@ -554,11 +605,38 @@
                   class="font-space text-text-brand-muted h-auto w-20 px-2 py-3 text-xs font-bold tracking-[1px] uppercase md:w-28 md:px-5"
                   >Type</Table.Head
                 >
-                <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5"></Table.Head>
+                <Table.Head class="h-auto w-16 px-2 py-3 md:w-20 md:px-5">
+                  <button
+                    type="button"
+                    onclick={() => {
+                      ruleFilterOpen = !ruleFilterOpen;
+                      if (!ruleFilterOpen) ruleFilter = '';
+                    }}
+                    class="font-space text-text-brand-muted hover:text-hister-coral flex items-center gap-1 text-xs font-bold tracking-[1px] uppercase transition-colors {ruleFilterOpen
+                      ? 'text-hister-coral'
+                      : ''}"
+                  >
+                    <Search class="size-3" />Filter
+                  </button>
+                </Table.Head>
               </Table.Row>
+              {#if ruleFilterOpen}
+                <Table.Row class="bg-muted-surface border-brutal-border border-b-[3px]">
+                  <Table.Head colspan={3} class="h-auto px-2 py-2 md:px-5">
+                    <Input
+                      type="text"
+                      variant="brutal"
+                      bind:value={ruleFilter}
+                      placeholder="Filter rules..."
+                      autofocus
+                      class="bg-card-surface focus-visible:border-hister-coral h-8 w-full px-3 text-sm font-normal"
+                    />
+                  </Table.Head>
+                </Table.Row>
+              {/if}
             </Table.Header>
             <Table.Body>
-              {#each ruleRows as row, i}
+              {#each filteredRuleRows as { row, i }}
                 <Table.Row class="border-brutal-border border-b-[3px]">
                   {#if editingRuleIndex === i}
                     <Table.Cell class="px-2 py-2 md:px-3" colspan={2}>
@@ -647,7 +725,7 @@
             </Table.Body>
           </Table.Root>
 
-          {#if ruleRows.length === 0}
+          {#if filteredRuleRows.length === 0}
             <div class="flex flex-col items-center justify-center gap-3 py-10">
               <div
                 class="flex h-12 w-12 items-center justify-center"
@@ -655,7 +733,9 @@
               >
                 <Shield class="size-5" />
               </div>
-              <p class="font-inter text-text-brand-muted text-sm">No rules defined yet.</p>
+              <p class="font-inter text-text-brand-muted text-sm">
+                {ruleFilter ? 'No rules match the filter.' : 'No rules defined yet.'}
+              </p>
             </div>
           {/if}
         </Card.Content>
