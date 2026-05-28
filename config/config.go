@@ -65,6 +65,11 @@ type TUI struct {
 	ThemesDir   string `yaml:"themes_dir" mapstructure:"themes_dir"`
 }
 
+var (
+	DefaultServerAddress = "127.0.0.1:4433"
+	DefaultServerBaseURL = ""
+)
+
 type Server struct {
 	Address   string                 `yaml:"address"     mapstructure:"address"`
 	BaseURL   string                 `yaml:"base_url"    mapstructure:"base_url"`
@@ -439,7 +444,8 @@ func CreateDefaultConfig() *Config {
 			DisplayExtractorConfig: false,
 		},
 		Server: Server{
-			Address:  "127.0.0.1:4433",
+			Address:  DefaultServerAddress,
+			BaseURL:  DefaultServerBaseURL,
 			Database: "db.sqlite3",
 		},
 		Indexer: Indexer{

@@ -1,9 +1,86 @@
 package config
 
 import (
+	"os"
 	"regexp"
 	"testing"
 )
+
+func TestServerDefaults(t *testing.T) {
+	oldAddress := DefaultServerAddress
+	oldBaseURL := DefaultServerBaseURL
+	t.Cleanup(func() {
+		DefaultServerAddress = oldAddress
+		DefaultServerBaseURL = oldBaseURL
+	})
+
+	DefaultServerAddress = "127.0.0.1:4433"
+	DefaultServerBaseURL = ""
+
+	cfg := CreateDefaultConfig()
+	if cfg.Server.Address != "127.0.0.1:4433" {
+		t.Fatalf("default server address=%q, want %q", cfg.Server.Address, "127.0.0.1:4433")
+	}
+	if cfg.Server.BaseURL != "" {
+		t.Fatalf("default server base_url=%q, want empty", cfg.Server.BaseURL)
+	}
+}
+
+func TestConfigFileOverridesBuildDefaults(t *testing.T) {
+	oldAddress := DefaultServerAddress
+	oldBaseURL := DefaultServerBaseURL
+	oldEnvAddress, hadEnvAddress := os.LookupEnv("HISTER__SERVER__ADDRESS")
+	oldEnvBaseURL, hadEnvBaseURL := os.LookupEnv("HISTER__SERVER__BASE_URL")
+	t.Cleanup(func() {
+		DefaultServerAddress = oldAddress
+		DefaultServerBaseURL = oldBaseURL
+		restoreEnv("HISTER__SERVER__ADDRESS", oldEnvAddress, hadEnvAddress)
+		restoreEnv("HISTER__SERVER__BASE_URL", oldEnvBaseURL, hadEnvBaseURL)
+	})
+
+	DefaultServerAddress = "0.0.0.0:4433"
+	DefaultServerBaseURL = "http://localhost:4433"
+	_ = os.Unsetenv("HISTER__SERVER__ADDRESS")
+	_ = os.Unsetenv("HISTER__SERVER__BASE_URL")
+
+	cfg, err := parseConfig([]byte("server:\n  base_url: https://hister.example.com\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Server.Address != "0.0.0.0:4433" {
+		t.Fatalf("server address=%q, want build default", cfg.Server.Address)
+	}
+	if cfg.Server.BaseURL != "https://hister.example.com" {
+		t.Fatalf("server base_url=%q, want config file value", cfg.Server.BaseURL)
+	}
+}
+
+func TestEnvironmentOverridesConfigFile(t *testing.T) {
+	oldEnvBaseURL, hadEnvBaseURL := os.LookupEnv("HISTER__SERVER__BASE_URL")
+	t.Cleanup(func() {
+		restoreEnv("HISTER__SERVER__BASE_URL", oldEnvBaseURL, hadEnvBaseURL)
+	})
+
+	if err := os.Setenv("HISTER__SERVER__BASE_URL", "https://env.example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig([]byte("server:\n  base_url: https://config.example.com\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Server.BaseURL != "https://env.example.com" {
+		t.Fatalf("server base_url=%q, want environment value", cfg.Server.BaseURL)
+	}
+}
+
+func restoreEnv(key, value string, existed bool) {
+	if existed {
+		_ = os.Setenv(key, value)
+		return
+	}
+	_ = os.Unsetenv(key)
+}
 
 func TestBasePathPrefix(t *testing.T) {
 	tests := []struct {

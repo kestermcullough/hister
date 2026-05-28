@@ -30,9 +30,15 @@ RUN go mod download
 COPY . .
 COPY --from=frontend /app/webui/app/build/ server/static/app/
 
-RUN CGO_ENABLED=1 go build \
+RUN set -eux; \
+    LISTEN_ADDRESS="0.0.0.0:4433"; \
+    BASE_URL="http://localhost:4433"; \
+    CGO_ENABLED=1 go build \
     -tags netgo,osusergo \
-    -ldflags "-linkmode external -extldflags '-static' -s -w" \
+    -ldflags "\
+      -linkmode external -extldflags '-static' -s -w \
+      -X 'github.com/asciimoo/hister/config.DefaultServerAddress=$LISTEN_ADDRESS' \
+      -X 'github.com/asciimoo/hister/config.DefaultServerBaseURL=$BASE_URL'" \
     -o hister .
 
 # Release stage (nonroot)
@@ -52,8 +58,6 @@ USER 65532:65532
 
 ENV HISTER_DATA_DIR=/hister/data
 ENV HISTER_CONFIG=/hister/data/config.yml
-ENV HISTER__SERVER__ADDRESS=0.0.0.0:4433
-ENV HISTER__SERVER__BASE_URL=http://localhost:4433
 
 EXPOSE 4433
 
@@ -75,8 +79,6 @@ USER root
 
 ENV HISTER_DATA_DIR=/hister/data
 ENV HISTER_CONFIG=/hister/data/config.yml
-ENV HISTER__SERVER__ADDRESS=0.0.0.0:4433
-ENV HISTER__SERVER__BASE_URL=http://localhost:4433
 
 EXPOSE 4433
 
@@ -99,8 +101,6 @@ USER root
 
 ENV HISTER_DATA_DIR=/hister/data
 ENV HISTER_CONFIG=/hister/data/config.yml
-ENV HISTER__SERVER__ADDRESS=0.0.0.0:4433
-ENV HISTER__SERVER__BASE_URL=http://localhost:4433
 
 EXPOSE 4433
 
