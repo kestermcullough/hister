@@ -363,7 +363,7 @@
           onclick={reindex}
           class="border-brutal-border font-outfit hover:border-hister-indigo h-9 w-full border-[3px] text-sm font-bold tracking-wide transition-all hover:shadow-[3px_3px_0_var(--brutal-shadow)]"
         >
-          {indexingEnabled ? 'Reindex Page' : 'Index Page'}
+          'Index This Page'
         </Button>
       </div>
 
