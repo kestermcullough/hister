@@ -373,9 +373,6 @@
   <!-- Section Header -->
   <div class="flex flex-col gap-4">
     <PageHeader color="hister-coral" size="lg" class="uppercase">Rules &amp; Aliases</PageHeader>
-    <p class="font-inter text-text-brand-secondary max-w-175 text-base leading-relaxed md:text-lg">
-      Configure Hister rules
-    </p>
   </div>
 
   {#if message}
