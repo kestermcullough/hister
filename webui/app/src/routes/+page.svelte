@@ -418,6 +418,7 @@
   let facetsCache = $state(new Map<string, FacetsResult>());
   let facetsLoading = $state(false);
   let filtersDropdownOpen = $state(false);
+  let actionsDropdownOpen = $state(false);
 
   function facetsCacheKey(): string {
     return `${query}|${dateFrom}|${dateTo}`;
@@ -1530,9 +1531,11 @@
                             {...props}
                             variant="ghost"
                             size="sm"
-                            class="font-inter text-text-brand-muted hover:text-hister-indigo gap-1 text-xs"
+                            class="font-inter gap-1 text-xs {filtersDropdownOpen
+                              ? 'text-hister-indigo'
+                              : 'text-text-brand-muted hover:text-hister-indigo'}"
                           >
-                            <SlidersHorizontal class="size-3" />
+                            <Filter class="size-3" />
                             Filters
                             {#if activeFilterCount > 0}
                               <span
@@ -1540,7 +1543,11 @@
                                 >{activeFilterCount}</span
                               >
                             {/if}
-                            <ChevronDown class="size-3" />
+                            <ChevronDown
+                              class="size-3 transition-transform duration-200 {filtersDropdownOpen
+                                ? 'rotate-180'
+                                : ''}"
+                            />
                           </Button>
                         {/snippet}
                       </DropdownMenu.Trigger>
@@ -1643,18 +1650,24 @@
                       </DropdownMenu.Content>
                     </DropdownMenu.Root>
                   {/if}
-                  <DropdownMenu.Root>
+                  <DropdownMenu.Root bind:open={actionsDropdownOpen}>
                     <DropdownMenu.Trigger>
                       {#snippet child({ props })}
                         <Button
                           {...props}
                           variant="ghost"
                           size="sm"
-                          class="font-inter text-text-brand-muted hover:text-hister-indigo gap-1 text-xs"
+                          class="font-inter gap-1 text-xs {actionsDropdownOpen
+                            ? 'text-hister-indigo'
+                            : 'text-text-brand-muted hover:text-hister-indigo'}"
                         >
-                          <Filter class="size-3" />
-                          Search Actions
-                          <ChevronDown class="size-3" />
+                          <SlidersHorizontal class="size-3" />
+                          Actions
+                          <ChevronDown
+                            class="size-3 transition-transform duration-200 {actionsDropdownOpen
+                              ? 'rotate-180'
+                              : ''}"
+                          />
                         </Button>
                       {/snippet}
                     </DropdownMenu.Trigger>
