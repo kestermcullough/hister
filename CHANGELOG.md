@@ -1,5 +1,143 @@
 # Changelog
 
+## v0.15.0
+
+### New Features
+
+#### Document Versioning
+
+A new `versioning` rule type instructs Hister to track changes to a document each
+time it is re-indexed. A diff-style changelog appears inside the preview panel so
+you can see what changed between versions, and the preview endpoint returns the
+full version history. Combine with a priority or skip rule to version only the
+pages that matter to you.
+
+#### Priority Rules
+
+Priority rules have been reintroduced (closes #222). Documents whose URLs match a
+priority rule are pinned to the top of search results regardless of their relevance
+score. Rules can be created, edited, and sorted directly in the web UI.
+
+#### PDF Indexing
+
+Local PDF files can now be indexed with full text extraction. The browser extension
+gains a new endpoint for sending PDFs directly to the server (closes #55). Indexed
+PDFs are stored as a distinct document type and can be filtered with
+`metadata.type:pdf` in search queries.
+
+#### Faceted Filtering
+
+Search results can now be filtered through facets that group documents by common
+fields such as language, and domain. Facet counts update live as you refine your
+query. Date-range filters have been moved into the same filters dropdown for a
+unified experience, and a "load more" control expands facets with many values.
+
+#### Embedded Video Extractor
+
+A new extractor detects embedded videos (YouTube, Vimeo, and similar platforms)
+on indexed pages and stores the embedding metadata as a dedicated document type.
+Embedded videos are rendered directly inside the result preview panel, so you can
+watch them without leaving Hister (closes #446).
+
+#### Notion Extractor
+
+A dedicated extractor for Notion pages extracts article content cleanly from
+public Notion URLs, removing navigation chrome and other non-content elements.
+
+#### Compressed HTML and Favicon Storage
+
+HTML content and favicons are now stored gzip-compressed in separate files on
+disk rather than inline inside the Bleve index. This significantly reduces index
+size on disk and lowers memory pressure during search (closes #384).
+
+#### Disable HTML Storage
+
+A new config option lets you turn off full HTML storage and preview generation
+entirely. Disabling storage trades preview functionality for a smaller footprint,
+useful for bulk or headless indexing workflows (closes #440).
+
+#### User-Specific Directory Indexing
+
+The `indexer.directories` config now accepts a `user` field per directory entry.
+Files under that path are indexed only for the specified user, making it easy to
+share a single Hister instance while keeping personal file indexes private.
+
+#### Label Editing from Results
+
+Document labels can be edited inline directly from search result cards without
+navigating away. The browser extension can also apply a one-off label to a
+document at index time (closes #407). Updating a document no longer clears
+previously assigned labels.
+
+#### File Deletion Tracking
+
+When a locally-watched file is deleted from the filesystem, Hister now
+automatically removes it from the index (closes #230). Batch and single-document
+deletions also clean up the associated HTML and favicon files from disk.
+
+#### MCP Document Preview Endpoint
+
+A new MCP endpoint exposes document previews to LLM agents and MCP-compatible
+tools, complementing the existing MCP search endpoint.
+
+#### Browser Import: Ladybird Support
+
+The `import-browser` command now supports importing history from the
+[Ladybird](https://ladybird.org/) browser.
+
+#### Browser Import: Auto-Detect Database
+
+The `import-browser` command now automatically detects the browser database file
+path, so passing an explicit path is no longer required for supported browsers.
+
+### Enhancements
+
+- **Copy URL button**: a copy-to-clipboard icon appears next to each result URL
+- **Preview extractor selector**: switch between available extractors when viewing
+  a document preview without re-indexing
+- **Rules table**: columns are sortable; values are filterable; filter toggle
+  buttons are visually distinct from column headers; regexp validation runs before
+  saving a rule
+- **CLI index flags**: `--delay`, `--timeout`, and `--user-agent` are now
+  available directly on `hister index` without needing a config file
+- **Configurable client timeout**: the HTTP client timeout used during indexing
+  is configurable (fixes #429)
+- **Standardized config file lookup**: config file discovery follows a consistent
+  search order across all platforms (closes #424)
+- **History autoscroll**: the history view scrolls to keep the selected entry
+  visible (#427)
+- **Admin profile version**: the admin profile page now shows the running Hister
+  version (closes #409)
+- **Log level aliases**: common short aliases are accepted for log level values
+  (fixes #411)
+- **Random tips**: a rotating set of usage tips is shown on the front page when
+  navigating back from search results
+- **yt-dlp diagnostics**: clearer error messages and debug logging help diagnose
+  yt-dlp configuration problems
+- **Batch crawl insertion**: URLs discovered during a recursive crawl are
+  inserted in batches for better throughput
+- **Extension popup header**: the popup header is now a link to the configured
+  Hister server
+- **Per-sub-index paging**: each language sub-index is iterated independently to
+  prevent paging gaps in multi-language setups
+- **Improved embedding handling**: fallow and embedding request processing
+  is more robust
+
+### Bug Fixes
+
+- Docker `BASE_URL` environment variable can now be correctly overridden by a
+  config file (closes #442)
+- Search results now contain all queried terms rather than any of them
+- HTML is no longer re-written to the indexer during a reindex run
+- yt-dlp subtitle download no longer skipped when the sub language differs from
+  the original language (#429)
+- History page stops loading more entries when the last page has been reached
+- "Show all" in history now scrolls back to the top
+- Rule type filter no longer incorrectly excludes rules
+- Debug-level init messages are correctly suppressed at higher log levels
+- Result paging uses a valid sort key, fixing out-of-order pages
+- Times are displayed in the browser's configured timezone
+
 ## v0.14.0
 
 ### New Features
