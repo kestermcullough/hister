@@ -232,9 +232,9 @@ var (
 		"scorchPersisterOptions": map[string]any{
 			"NumPersisterWorkers":           4,
 			"MaxSizeInMemoryMergePerWorker": 80 * 1024 * 1024, // bytes
-			// default is 1000. With 0 we drastically increases persisting occurences to reduce memory usage
+			// default is 1000. With 200 we increases persisting occurences to reduce memory usage
 			// https://github.com/blevesearch/bleve/blob/master/index/scorch/persister.go
-			"PersisterNapUnderNumFiles": 0,
+			"PersisterNapUnderNumFiles": 200,
 		},
 		"scorchMergePlanOptions": map[string]any{
 			"FloorSegmentFileSize": 20 * 1024 * 1024, // bytes
