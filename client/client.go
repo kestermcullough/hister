@@ -15,11 +15,12 @@ import (
 const targetUserIDHeader = "X-Hister-Target-User-ID"
 
 type Client struct {
-	baseURL      string
-	httpClient   *http.Client
-	userAgent    string
-	accessToken  string
-	targetUserID *uint
+	baseURL        string
+	httpClient     *http.Client
+	userAgent      string
+	accessToken    string
+	targetUserID   *uint
+	allowSensitive bool
 }
 
 type Option func(*Client)
@@ -38,6 +39,10 @@ func WithUserAgent(ua string) Option {
 
 func WithAccessToken(token string) Option {
 	return func(c *Client) { c.accessToken = token }
+}
+
+func WithAllowSensitive() Option {
+	return func(c *Client) { c.allowSensitive = true }
 }
 
 // WithTargetUserID instructs the server to index submitted documents under the

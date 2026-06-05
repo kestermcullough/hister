@@ -41,9 +41,9 @@ type Document struct {
 	ExtraDocuments []*Document `json:"-"`
 	// SkipIndexing can be set by extractors to mark the document to exclude from indexing. Useful when populating ExtraDocuments
 	SkipIndexing       bool `json:"-"`
+	SkipSensitiveCheck bool `json:"skip_sensitive_check"`
 	faviconURL         string
 	processed          bool
-	skipSensitiveCheck bool
 }
 
 var (
@@ -119,7 +119,7 @@ func (d *Document) Process(ld LanguageDetector, extractFn func(*Document) error)
 	if ld == nil {
 		ld = NewNullLanguageDetector()
 	}
-	if !d.skipSensitiveCheck && sensitiveContentRe != nil && sensitiveContentRe.MatchString(d.HTML) {
+	if !d.SkipSensitiveCheck && sensitiveContentRe != nil && sensitiveContentRe.MatchString(d.HTML) {
 		log.Debug().Msg("Matching sensitive content: " + strings.Join(sensitiveContentRe.FindAllString(d.HTML, -1), ","))
 		return ErrSensitiveContent
 	}
@@ -183,7 +183,7 @@ func (d *Document) processFile(ld LanguageDetector) error {
 		}
 		d.Text = string(content)
 	}
-	if !d.skipSensitiveCheck && sensitiveContentRe != nil && sensitiveContentRe.MatchString(d.Text) {
+	if !d.SkipSensitiveCheck && sensitiveContentRe != nil && sensitiveContentRe.MatchString(d.Text) {
 		return ErrSensitiveContent
 	}
 	d.Type = types.Local
@@ -211,7 +211,7 @@ func (d *Document) finalizeDocument(ld LanguageDetector) {
 // SetSkipSensitiveCheck controls whether sensitive content checks are skipped
 // during processing (e.g. during reindex with skipSensitiveChecks=true).
 func (d *Document) SetSkipSensitiveCheck(v bool) {
-	d.skipSensitiveCheck = v
+	d.SkipSensitiveCheck = v
 }
 
 // IsProcessed reports whether the document has already been processed.

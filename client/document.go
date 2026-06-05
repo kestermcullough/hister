@@ -11,6 +11,9 @@ import (
 )
 
 func (c *Client) AddDocumentJSON(doc *document.Document) (err error) {
+	if c.allowSensitive {
+		doc.SkipSensitiveCheck = true
+	}
 	data, err := json.Marshal(doc)
 	if err != nil {
 		return err

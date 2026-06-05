@@ -492,6 +492,9 @@ var indexCmd = &cobra.Command{
 		} else if userIDChanged {
 			clientOpts = append(clientOpts, client.WithTargetUserID(targetUserID))
 		}
+		if allowSensitive, _ := cmd.Flags().GetBool("allow-sensitive"); allowSensitive {
+			clientOpts = append(clientOpts, client.WithAllowSensitive())
+		}
 
 		force, _ := cmd.Flags().GetBool("force")
 		recursive, _ := cmd.Flags().GetBool("recursive")
@@ -724,6 +727,7 @@ func init() {
 	indexCmd.Flags().Int("delay", 0, "Delay in seconds between requests (0 = no delay; overrides config)")
 	indexCmd.Flags().Int("timeout", 0, "Request timeout in seconds (0 = 5s default; overrides config)")
 	indexCmd.Flags().String("user-agent", "", "User-agent string for requests (overrides config)")
+	indexCmd.Flags().Bool("allow-sensitive", false, "Skip sensitive content checks allowing sensitive content being indexed.")
 }
 
 var deleteCmd = &cobra.Command{
