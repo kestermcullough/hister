@@ -768,7 +768,10 @@
             role="separator"
             aria-label="Resize preview panel"
           ></div>
-          <div style="width: {panelWidthPct}%; flex: none;" class="flex min-h-0 overflow-hidden">
+          <div
+            style="width: min({panelWidthPct}%, max(0px, calc(100% - 28rem))); flex: none;"
+            class="flex min-h-0 overflow-hidden"
+          >
             <PreviewPanel
               url={panelUrl}
               hintTitle={panelHintTitle}
