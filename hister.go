@@ -1015,6 +1015,9 @@ var exportCmd = &cobra.Command{
 Each document is written as a single JSON line. Lines not starting with '{' are
 structural markers ('[', ']', ',') and can be safely skipped by parsers.
 
+Use --start-date and --end-date (format: YYYY-MM-DD) to only export
+documents added within the given date range.
+
 Use '-' as OUTPUT_FILE to write to stdout.`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -1022,6 +1025,22 @@ Use '-' as OUTPUT_FILE to write to stdout.`,
 		queryStr := strings.Join(args[1:], " ")
 		if queryStr == "" {
 			queryStr = "*"
+		}
+
+		var dateFrom, dateTo int64
+		if v, _ := cmd.Flags().GetString("start-date"); v != "" {
+			t, err := time.Parse("2006-01-02", v)
+			if err != nil {
+				exit(1, "Invalid --start-date: "+err.Error())
+			}
+			dateFrom = t.Unix()
+		}
+		if v, _ := cmd.Flags().GetString("end-date"); v != "" {
+			t, err := time.Parse("2006-01-02", v)
+			if err != nil {
+				exit(1, "Invalid --end-date: "+err.Error())
+			}
+			dateTo = t.AddDate(0, 0, 1).Unix() - 1
 		}
 
 		var out *os.File
@@ -1061,6 +1080,8 @@ Use '-' as OUTPUT_FILE to write to stdout.`,
 				PageKey:     pageKey,
 				IncludeHTML: true,
 				IncludeText: true,
+				DateFrom:    dateFrom,
+				DateTo:      dateTo,
 			})
 			if err != nil {
 				exit(1, "Search failed: "+err.Error())
@@ -1337,6 +1358,9 @@ func init() {
 	importCmd.Flags().StringArray("cookie", nil, "HTTP cookie as Set-Cookie value (repeatable, e.g. --cookie \"session=abc; Domain=example.com\")")
 	importCmd.Flags().String("start-date", "", "only import documents added on or after this date (YYYY-MM-DD)")
 	importCmd.Flags().String("end-date", "", "only import documents added on or before this date (YYYY-MM-DD)")
+
+	exportCmd.Flags().String("start-date", "", "only export documents added on or after this date (YYYY-MM-DD)")
+	exportCmd.Flags().String("end-date", "", "only export documents added on or before this date (YYYY-MM-DD)")
 
 	createUserCmd.Flags().Bool("admin", false, "create user with admin privileges")
 
