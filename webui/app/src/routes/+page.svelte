@@ -1630,101 +1630,79 @@
                         class="border-brutal-border bg-card-surface w-80 rounded-none border-[3px] p-3 shadow-[4px_4px_0_var(--brutal-shadow)]"
                       >
                         <div class="space-y-3">
+                          {#snippet facetSection(
+                            facetName: string,
+                            label: string,
+                            Icon: typeof Globe,
+                            prefix: string,
+                            activeFilters: Set<string>,
+                            showSeparator: boolean,
+                          )}
+                            {#if showSeparator}
+                              <Separator class="bg-border-brand-muted" />
+                            {/if}
+                            <div class="space-y-1.5">
+                              <p
+                                class="font-inter text-text-brand-muted flex items-center gap-1.5 text-xs font-semibold"
+                              >
+                                <Icon class="size-3" />
+                                {label}
+                              </p>
+                              <div class="flex flex-wrap gap-1">
+                                {#each currentFacets?.terms?.[facetName]?.terms ?? [] as { term, count } (term)}
+                                  <button
+                                    class="font-inter cursor-pointer rounded-none border-[2px] px-2 py-0.5 text-xs transition-colors {activeFilters.has(
+                                      term,
+                                    )
+                                      ? 'border-hister-indigo bg-hister-indigo text-background'
+                                      : 'border-border-brand-muted text-text-brand-secondary hover:border-hister-indigo hover:text-hister-indigo'}"
+                                    onclick={() => toggleQueryToken(prefix, term)}
+                                  >
+                                    {term}
+                                    <span class="opacity-60">({count})</span>
+                                  </button>
+                                {/each}
+                              </div>
+                              {#if currentFacets?.terms?.[facetName]?.other}
+                                <button
+                                  class="font-inter text-text-brand-muted hover:text-hister-indigo mt-1 cursor-pointer text-xs underline-offset-2 hover:underline"
+                                  onclick={() => loadMoreFacet(facetName)}>Load more</button
+                                >
+                              {/if}
+                            </div>
+                          {/snippet}
                           {#if facetsLoading}
                             <p class="font-inter text-text-brand-muted text-xs">Loading filters…</p>
                           {:else}
                             {#if showDomainsFacet}
-                              <div class="space-y-1.5">
-                                <p
-                                  class="font-inter text-text-brand-muted flex items-center gap-1.5 text-xs font-semibold"
-                                >
-                                  <Globe class="size-3" />
-                                  Domains
-                                </p>
-                                <div class="flex flex-wrap gap-1">
-                                  {#each currentFacets?.terms?.['domains']?.terms ?? [] as { term, count } (term)}
-                                    <button
-                                      class="font-inter cursor-pointer rounded-none border-[2px] px-2 py-0.5 text-xs transition-colors {activeDomainFilters.has(
-                                        term,
-                                      )
-                                        ? 'border-hister-indigo bg-hister-indigo text-background'
-                                        : 'border-border-brand-muted text-text-brand-secondary hover:border-hister-indigo hover:text-hister-indigo'}"
-                                      onclick={() => toggleQueryToken('domain', term)}
-                                    >
-                                      {term}
-                                      <span class="opacity-60">({count})</span>
-                                    </button>
-                                  {/each}
-                                </div>
-                                {#if currentFacets?.terms?.['domains']?.other}
-                                  <button
-                                    class="font-inter text-text-brand-muted hover:text-hister-indigo mt-1 cursor-pointer text-xs underline-offset-2 hover:underline"
-                                    onclick={() => loadMoreFacet('domains')}>Load more</button
-                                  >
-                                {/if}
-                              </div>
+                              {@render facetSection(
+                                'domains',
+                                'Domains',
+                                Globe,
+                                'domain',
+                                activeDomainFilters,
+                                false,
+                              )}
                             {/if}
                             {#if showLanguagesFacet}
-                              {#if showDomainsFacet}
-                                <Separator class="bg-border-brand-muted" />
-                              {/if}
-                              <div class="space-y-1.5">
-                                <p
-                                  class="font-inter text-text-brand-muted flex items-center gap-1.5 text-xs font-semibold"
-                                >
-                                  <Globe class="size-3" />
-                                  Languages
-                                </p>
-                                <div class="flex flex-wrap gap-1">
-                                  {#each currentFacets?.terms?.['languages']?.terms ?? [] as { term, count } (term)}
-                                    <button
-                                      class="font-inter cursor-pointer rounded-none border-[2px] px-2 py-0.5 text-xs transition-colors {activeLanguageFilters.has(
-                                        term,
-                                      )
-                                        ? 'border-hister-indigo bg-hister-indigo text-background'
-                                        : 'border-border-brand-muted text-text-brand-secondary hover:border-hister-indigo hover:text-hister-indigo'}"
-                                      onclick={() => toggleQueryToken('language', term)}
-                                    >
-                                      {term}
-                                      <span class="opacity-60">({count})</span>
-                                    </button>
-                                  {/each}
-                                </div>
-                                {#if currentFacets?.terms?.['languages']?.other}
-                                  <button
-                                    class="font-inter text-text-brand-muted hover:text-hister-indigo mt-1 cursor-pointer text-xs underline-offset-2 hover:underline"
-                                    onclick={() => loadMoreFacet('languages')}>Load more</button
-                                  >
-                                {/if}
-                              </div>
+                              {@render facetSection(
+                                'languages',
+                                'Languages',
+                                Globe,
+                                'language',
+                                activeLanguageFilters,
+                                showDomainsFacet,
+                              )}
                             {/if}
                             {#if showTypesFacet}
-                              {#if showDomainsFacet || showLanguagesFacet}
-                                <Separator class="bg-border-brand-muted" />
-                              {/if}
-                              <div class="space-y-1.5">
-                                <p
-                                  class="font-inter text-text-brand-muted flex items-center gap-1.5 text-xs font-semibold"
-                                >
-                                  <Tag class="size-3" />
-                                  Type
-                                </p>
-                                <div class="flex flex-wrap gap-1">
-                                  {#each currentFacets?.terms?.['types']?.terms ?? [] as { term, count } (term)}
-                                    <button
-                                      class="font-inter cursor-pointer rounded-none border-[2px] px-2 py-0.5 text-xs transition-colors {activeTypeFilters.has(
-                                        term,
-                                      )
-                                        ? 'border-hister-indigo bg-hister-indigo text-background'
-                                        : 'border-border-brand-muted text-text-brand-secondary hover:border-hister-indigo hover:text-hister-indigo'}"
-                                      onclick={() => toggleQueryToken('type', term)}
-                                    >
-                                      {term}
-                                      <span class="opacity-60">({count})</span>
-                                    </button>
-                                  {/each}
-                                </div>
-                              </div>
+                              {@render facetSection(
+                                'types',
+                                'Type',
+                                Tag,
+                                'type',
+                                activeTypeFilters,
+                                showDomainsFacet || showLanguagesFacet,
+                              )}
                             {/if}
                             {#snippet customDateInputs()}
                               <details class="group/custom w-full">
@@ -1755,7 +1733,7 @@
                               </details>
                             {/snippet}
                             {#if currentFacets?.date_histogram?.some((b) => b.count > 0)}
-                              {#if currentFacets?.terms?.['domains']?.terms?.length || currentFacets?.terms?.['languages']?.terms?.length}
+                              {#if showDomainsFacet || showLanguagesFacet || showTypesFacet}
                                 <Separator class="bg-border-brand-muted" />
                               {/if}
                               <div class="space-y-1.5">
