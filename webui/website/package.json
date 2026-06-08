@@ -10,12 +10,12 @@
   "devDependencies": {
     "@lucide/svelte": "^1.17.0",
     "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.61.1",
+    "@sveltejs/kit": "^2.63.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/vite": "^4.3.0",
     "mdsvex": "^0.12.7",
-    "shiki": "^4.1.0",
-    "svelte": "^5.56.1",
+    "shiki": "^4.2.0",
+    "svelte": "^5.56.3",
     "tailwindcss": "^4.2.1",
     "vite": "^8.0.16"
   },
