@@ -26,6 +26,7 @@ import (
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/id"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/it"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/nl"
+	_ "github.com/blevesearch/bleve/v2/analysis/lang/no"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/pl"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/pt"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/ro"
@@ -33,6 +34,7 @@ import (
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/sv"
 	_ "github.com/blevesearch/bleve/v2/analysis/lang/tr"
 
+	// register lingua-go language packs
 	"github.com/asciimoo/lingua-go"
 	_ "github.com/asciimoo/lingua-go/language-models/ar"
 	_ "github.com/asciimoo/lingua-go/language-models/bg"
@@ -53,6 +55,7 @@ import (
 	_ "github.com/asciimoo/lingua-go/language-models/hy"
 	_ "github.com/asciimoo/lingua-go/language-models/id"
 	_ "github.com/asciimoo/lingua-go/language-models/it"
+	_ "github.com/asciimoo/lingua-go/language-models/nb"
 	_ "github.com/asciimoo/lingua-go/language-models/nl"
 	_ "github.com/asciimoo/lingua-go/language-models/pl"
 	_ "github.com/asciimoo/lingua-go/language-models/pt"
@@ -66,6 +69,7 @@ const UnknownLanguage = "unknown"
 
 var Languages = []lingua.Language{
 	lingua.Arabic,    // ar
+	lingua.Bokmal,    // nb - Norewgian Bokmal, gets rewritten to "no" in Hister
 	lingua.Bulgarian, // bg
 	lingua.Catalan,   // ca
 	// lingua.Czech,      // cs
@@ -92,7 +96,7 @@ var Languages = []lingua.Language{
 	lingua.Russian,    // ru
 	lingua.Swedish,    // sv
 	lingua.Turkish,    // tr
-	// supported by bleve but not by lingua: no, gl, in
+	// supported by bleve but not by lingua: gl, in
 }
 
 // LanguageDetector detects the language of a text.
@@ -118,7 +122,12 @@ func NewNullLanguageDetector() LanguageDetector {
 
 func (d *langDetector) DetectLanguage(s string) string {
 	if language, exists := d.detector.DetectLanguageOf(s); exists {
-		return strings.ToLower(language.IsoCode639_1().String())
+		code := strings.ToLower(language.IsoCode639_1().String())
+		// use generic "no" code for Norwegian
+		if code == "nb" {
+			return "no"
+		}
+		return code
 	}
 	return UnknownLanguage
 }
