@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	iofs "io/fs"
@@ -1050,6 +1051,7 @@ func serveUpdateLabel(c *webContext) {
 }
 
 func serveHistory(c *webContext) {
+	rssFormat := c.Request.URL.Query().Get("format") == "rss"
 	if c.Request.URL.Query().Get("opened") == "true" {
 		var lastID uint
 		if v := c.Request.URL.Query().Get("last_id"); v != "" {
@@ -1087,11 +1089,93 @@ func serveHistory(c *webContext) {
 		if len(docs) > 0 {
 			nextLastID = docs[len(docs)-1].ID
 		}
+		if rssFormat {
+			rssItems := make([]rssItem, 0, len(docs))
+			for _, d := range docs {
+				title := d.Title
+				if title == "" {
+					title = d.URL
+				}
+				rssItems = append(rssItems, rssItem{
+					Title:   title,
+					Link:    d.URL,
+					GUID:    rssGUID{Value: d.URL, IsPermaLink: "true"},
+					PubDate: time.Unix(d.Added, 0).UTC().Format(time.RFC1123Z),
+				})
+			}
+			serveRSS(c, "Hister - visited pages", c.Config.BaseURL("/"), rssItems)
+			return
+		}
 		c.JSON(&openedResponse{Documents: docs, LastID: nextLastID})
 		return
 	}
 	ds := indexer.GetLatestDocuments(100, c.Request.URL.Query().Get("last"), c.UserID)
+	if rssFormat {
+		var rssItems []rssItem
+		if ds != nil {
+			rssItems = make([]rssItem, 0, len(ds.Documents))
+			for _, d := range ds.Documents {
+				title := d.Title
+				if title == "" {
+					title = d.URL
+				}
+				rssItems = append(rssItems, rssItem{
+					Title:   title,
+					Link:    d.URL,
+					GUID:    rssGUID{Value: d.URL, IsPermaLink: "true"},
+					PubDate: time.Unix(d.Added, 0).UTC().Format(time.RFC1123Z),
+				})
+			}
+		}
+		serveRSS(c, "Hister - indexed pages", c.Config.BaseURL("/"), rssItems)
+		return
+	}
 	c.JSON(ds)
+}
+
+type rssGUID struct {
+	Value       string `xml:",chardata"`
+	IsPermaLink string `xml:"isPermaLink,attr,omitempty"`
+}
+
+type rssItem struct {
+	Title   string  `xml:"title"`
+	Link    string  `xml:"link"`
+	GUID    rssGUID `xml:"guid"`
+	PubDate string  `xml:"pubDate,omitempty"`
+}
+
+type rssChannel struct {
+	Title       string    `xml:"title"`
+	Link        string    `xml:"link"`
+	Description string    `xml:"description"`
+	Items       []rssItem `xml:"item"`
+}
+
+type rssFeed struct {
+	XMLName xml.Name   `xml:"rss"`
+	Version string     `xml:"version,attr"`
+	Channel rssChannel `xml:"channel"`
+}
+
+func serveRSS(c *webContext, title, link string, items []rssItem) {
+	feed := rssFeed{
+		Version: "2.0",
+		Channel: rssChannel{
+			Title:       title,
+			Link:        link,
+			Description: title,
+			Items:       items,
+		},
+	}
+	c.Response.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+	if _, err := c.Response.Write([]byte(xml.Header)); err != nil {
+		log.Warn().Err(err).Msg("failed to write RSS header")
+		return
+	}
+	if err := xml.NewEncoder(c.Response).Encode(feed); err != nil {
+		log.Warn().Err(err).Msg("failed to encode RSS feed")
+	}
 }
 
 func serveSaveHistory(c *webContext) {

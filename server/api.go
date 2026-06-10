@@ -557,6 +557,12 @@ func init() {
 					Required:    false,
 					Description: "Pagination cursor: URL of the last indexed document from a previous response",
 				},
+				{
+					Name:        "format",
+					Type:        "string",
+					Required:    false,
+					Description: "Response format; set to \"rss\" to receive an RSS 2.0 feed instead of JSON",
+				},
 			},
 		},
 		{
