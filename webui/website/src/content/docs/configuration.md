@@ -68,6 +68,7 @@ app:
   directory: '~/.config/hister'
   search_url: 'https://google.com/search?q={query}'
   log_level: 'info'
+  log_file: ''
   open_results_on_new_tab: false
 
 server:
@@ -128,6 +129,7 @@ sensitive_content_patterns:
 | `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                          |
 | `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                           |
 | `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                |
+| `log_file`                | string | (none)                                | Path to a log file. When set, log output is written to this file instead of stderr. The file is created if it does not exist and appended to if it does. |
 | `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                       |
 | `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                    |
 | `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                          |
@@ -666,6 +668,7 @@ HISTER__<SECTION>__<KEY>=value
 For example:
 
 - `HISTER__APP__LOG_LEVEL=debug` overrides `app.log_level`
+- `HISTER__APP__LOG_FILE=/var/log/hister.log` overrides `app.log_file`
 - `HISTER__SERVER__ADDRESS=0.0.0.0:8080` overrides `server.address`
 
 Two special-purpose variables are also supported:

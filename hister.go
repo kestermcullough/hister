@@ -1485,6 +1485,15 @@ func initLog() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		log.Warn().Str("Invalid config log level", cfg.App.LogLevel)
 	}
+
+	if cfg.App.LogFile != "" {
+		f, err := os.OpenFile(cfg.App.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
+		if err != nil {
+			log.Error().Err(err).Str("log_file", cfg.App.LogFile).Msg("Failed to open log file, falling back to stderr")
+			return
+		}
+		log.Logger = log.Logger.Output(f)
+	}
 }
 
 func initDB() {
