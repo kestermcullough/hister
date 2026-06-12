@@ -1385,13 +1385,30 @@ func init() {
 
 	cobra.OnInitialize(initialize)
 
-	lout := zerolog.ConsoleWriter{
-		Out: os.Stderr,
+	zerolog.CallerMarshalFunc = func(_ uintptr, file string, line int) string {
+		dir, fn := filepath.Split(file)
+		if dir == "" {
+			return fn + ":" + strconv.Itoa(line)
+		}
+		_, subdir := filepath.Split(strings.TrimSuffix(dir, "/"))
+		return subdir + "/" + fn + ":" + strconv.Itoa(line)
+	}
+	log.Logger = log.With().Caller().Logger()
+	log.Logger = log.Output(newConsoleWriter(os.Stderr, false))
+}
+
+func newConsoleWriter(out io.Writer, noColor bool) zerolog.ConsoleWriter {
+	return zerolog.ConsoleWriter{
+		Out:     out,
+		NoColor: noColor,
 		FormatTimestamp: func(i any) string {
 			return i.(string)
 		},
 		FormatLevel: func(i any) string {
 			level := strings.ToUpper(fmt.Sprintf("%-6s", i))
+			if noColor {
+				return fmt.Sprintf("| %s |", level)
+			}
 			var color lipgloss.Color
 			switch i {
 			case "trace":
@@ -1412,16 +1429,6 @@ func init() {
 			return fmt.Sprintf("| %s |", lipgloss.NewStyle().Foreground(color).Bold(true).Render(level))
 		},
 	}
-	zerolog.CallerMarshalFunc = func(_ uintptr, file string, line int) string {
-		dir, fn := filepath.Split(file)
-		if dir == "" {
-			return fn + ":" + strconv.Itoa(line)
-		}
-		_, subdir := filepath.Split(strings.TrimSuffix(dir, "/"))
-		return subdir + "/" + fn + ":" + strconv.Itoa(line)
-	}
-	log.Logger = log.With().Caller().Logger()
-	log.Logger = log.Output(lout)
 }
 
 func initialize() {
@@ -1486,13 +1493,26 @@ func initLog() {
 		log.Warn().Str("Invalid config log level", cfg.App.LogLevel)
 	}
 
+	var out io.Writer = os.Stderr
+	noColor := false
 	if cfg.App.LogFile != "" {
 		f, err := os.OpenFile(cfg.App.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
 		if err != nil {
 			log.Error().Err(err).Str("log_file", cfg.App.LogFile).Msg("Failed to open log file, falling back to stderr")
-			return
+		} else {
+			out = f
+			noColor = true
 		}
-		log.Logger = log.Logger.Output(f)
+	}
+
+	switch cfg.App.LogFormat {
+	case "json":
+		log.Logger = log.Logger.Output(out)
+	case "text", "":
+		log.Logger = log.Logger.Output(newConsoleWriter(out, noColor))
+	default:
+		log.Warn().Str("log_format", cfg.App.LogFormat).Msg("Invalid log format, using text")
+		log.Logger = log.Logger.Output(newConsoleWriter(out, noColor))
 	}
 }
 

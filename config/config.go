@@ -52,6 +52,7 @@ type App struct {
 	UserHandling           bool   `yaml:"user_handling" mapstructure:"user_handling"`
 	LogLevel               string `yaml:"log_level" mapstructure:"log_level"`
 	LogFile                string `yaml:"log_file" mapstructure:"log_file"`
+	LogFormat              string `yaml:"log_format" mapstructure:"log_format"`
 	DebugSQL               bool   `yaml:"debug_sql" mapstructure:"debug_sql"`
 	OpenResultsOnNewTab    bool   `yaml:"open_results_on_new_tab" mapstructure:"open_results_on_new_tab"`
 	RedirectOnNoResults    bool   `yaml:"redirect_on_no_results" mapstructure:"redirect_on_no_results"`

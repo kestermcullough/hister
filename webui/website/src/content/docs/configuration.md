@@ -68,6 +68,7 @@ app:
   directory: '~/.config/hister'
   search_url: 'https://google.com/search?q={query}'
   log_level: 'info'
+  log_format: 'text'
   log_file: ''
   open_results_on_new_tab: false
 
@@ -122,18 +123,19 @@ sensitive_content_patterns:
 
 ## `app` Section
 
-| Key                       | Type   | Default                               | Description                                                                                                                             |
-| ------------------------- | ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                                                      |
-| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                                          |
-| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                          |
-| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                           |
-| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                |
+| Key                       | Type   | Default                               | Description                                                                                                                                              |
+| ------------------------- | ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                                                                       |
+| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                                                           |
+| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                                           |
+| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                                            |
+| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                                 |
+| `log_format`              | string | `text`                                | Log output format. `text` emits colored, human-readable lines; `json` emits one JSON object per log entry, suitable for log aggregators.                 |
 | `log_file`                | string | (none)                                | Path to a log file. When set, log output is written to this file instead of stderr. The file is created if it does not exist and appended to if it does. |
-| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                       |
-| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                    |
-| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                          |
-| `disable_previews`        | bool   | `false`                               | Disable the preview panel entirely. No HTML is stored on disk, and the preview UI is hidden. See [Disable Previews](#disable-previews). |
+| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                                        |
+| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                                     |
+| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                                           |
+| `disable_previews`        | bool   | `false`                               | Disable the preview panel entirely. No HTML is stored on disk, and the preview UI is hidden. See [Disable Previews](#disable-previews).                  |
 
 ## `server` Section
 
@@ -668,6 +670,7 @@ HISTER__<SECTION>__<KEY>=value
 For example:
 
 - `HISTER__APP__LOG_LEVEL=debug` overrides `app.log_level`
+- `HISTER__APP__LOG_FORMAT=json` overrides `app.log_format`
 - `HISTER__APP__LOG_FILE=/var/log/hister.log` overrides `app.log_file`
 - `HISTER__SERVER__ADDRESS=0.0.0.0:8080` overrides `server.address`
 
