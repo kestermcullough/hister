@@ -1245,7 +1245,11 @@
     const result = displayResults[idx]; // reactive: covers both pinned and regular results
     const isFullscreen = previewFullscreen;
     if (!isDesktop || (!panelOpen && !isFullscreen)) return;
-    if (!result) return;
+    if (!result) {
+      panelUrl = '';
+      panelHintTitle = '';
+      return;
+    }
     const url = result.url;
     if (url === untrack(() => panelUrl)) return;
     panelHintTitle = result.title || '';
