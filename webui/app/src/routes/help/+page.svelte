@@ -55,5 +55,12 @@
       <code>!so</code> alias for <code>url:*stackoverflow.com*</code> matches only sites where the URL
       contains "stackoverflow.com".
     </p>
+
+    <hr />
+
+    <h2>Documentation</h2>
+    <p>
+      Full project documentation is available at <a href="https://hister.org/docs" target="_blank" rel="noopener noreferrer">hister.org/docs</a>.
+    </p>
   </div>
 </div>
