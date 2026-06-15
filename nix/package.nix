@@ -49,7 +49,7 @@ buildGoModule (finalAttrs: {
     ];
   };
 
-  vendorHash = "sha256-DnsU1mVEa79PmdNxSBFqyj9lHwkw9wPvRuGeX3fjGC8=";
+  vendorHash = "sha256-QHCBpdD/LmIBQ4XCjW5OwiHzEjI6VEg0FsIPIJjs/yc=";
   proxyVendor = true;
 
   nativeBuildInputs = [
