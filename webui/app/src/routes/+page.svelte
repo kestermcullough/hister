@@ -611,8 +611,8 @@
 
   function buildSearchUrl(): string {
     return query
-      ? `/?q=${encodeURIComponent(query)}${dateFrom ? '&date_from=' + encodeURIComponent(dateFrom) : ''}${dateTo ? '&date_to=' + encodeURIComponent(dateTo) : ''}`
-      : '/';
+      ? `${base}/?q=${encodeURIComponent(query)}${dateFrom ? '&date_from=' + encodeURIComponent(dateFrom) : ''}${dateTo ? '&date_to=' + encodeURIComponent(dateTo) : ''}`
+      : base + '/';
   }
 
   // --- History state helpers ---

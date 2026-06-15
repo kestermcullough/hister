@@ -260,7 +260,7 @@
     loading = true;
     try {
       await fetchConfig();
-      let url = base + '/history';
+      let url = '/history';
       if (openedOnly) {
         url += '?opened=true';
         if (latest) {
