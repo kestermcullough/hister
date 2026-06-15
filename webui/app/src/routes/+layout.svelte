@@ -3,6 +3,7 @@
   import SiteHeader from '$lib/components/SiteHeader.svelte';
   import SiteFooter from '$lib/components/SiteFooter.svelte';
   import { fetchConfig, logout, resetConfig, type AppConfig } from '$lib/api';
+  import { base } from '$app/paths';
   import '../style.css';
 
   let { children } = $props();
@@ -19,7 +20,7 @@
     await logout();
     resetConfig();
     config = null;
-    window.location.href = '/';
+    window.location.href = base + '/';
   }
 </script>
 

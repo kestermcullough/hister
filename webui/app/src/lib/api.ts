@@ -1,3 +1,5 @@
+import { base } from '$app/paths';
+
 export interface AppConfig {
   wsUrl: string;
   searchUrl: string;
@@ -53,7 +55,7 @@ export async function fetchConfig(): Promise<AppConfig> {
   }
   const res = await fetch('api/config', { headers, credentials: 'include' });
   if (res.status === 403) {
-    window.location.href = '/auth';
+    window.location.href = base + '/auth';
     throw new Error('Authentication required');
   }
   const tok = res.headers.get('X-CSRF-Token');
@@ -94,7 +96,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   }
   const res = await fetch('api' + url, { ...options, headers, credentials: 'include' });
   if (res.status === 403) {
-    window.location.href = '/auth';
+    window.location.href = base + '/auth';
     throw new Error('Authentication required');
   }
   const newTok = res.headers.get('X-CSRF-Token');

@@ -8,6 +8,7 @@
     createResizeHandler,
   } from '$lib/preview';
   import { page } from '$app/stores';
+  import { base } from '$app/paths';
   import {
     WebSocketManager,
     KeyHandler,
@@ -267,7 +268,7 @@
     ],
     [
       { type: 'text', value: 'Define aliases in the' },
-      { type: 'link', value: 'Rules page', href: '/rules' },
+      { type: 'link', value: 'Rules page', href: base + '/rules' },
       { type: 'text', value: 'to shorten common queries' },
     ],
     [

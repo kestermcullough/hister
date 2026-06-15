@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { tick } from 'svelte';
+import { base } from '$app/paths';
 
 /** Builds the /preview?id=...&title=... URL for a document. */
 export function buildPreviewUrl(id: string, title: string): string {
-  return `/preview?id=${encodeURIComponent(id)}${title ? '&title=' + encodeURIComponent(title) : ''}`;
+  return `${base}/preview?id=${encodeURIComponent(id)}${title ? '&title=' + encodeURIComponent(title) : ''}`;
 }
 
 /** Pushes a preview entry onto the browser history stack. */

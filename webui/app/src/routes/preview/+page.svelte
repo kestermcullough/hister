@@ -4,6 +4,7 @@
   import { Button } from '@hister/components/ui/button';
   import { ArrowLeft } from '@lucide/svelte';
   import PreviewPanel from '$lib/components/PreviewPanel.svelte';
+  import { base } from '$app/paths';
 
   let docUrl = $state('');
   let docTitle = $state('');
@@ -41,13 +42,17 @@
         } catch {
           // ignore referrer parse errors
         }
-        window.location.href = '/';
+        window.location.href = base + '/';
       }}
     />
   {:else}
     <div class="flex flex-1 flex-col items-center justify-center gap-4">
       <p class="font-inter text-text-brand-secondary">No document URL specified.</p>
-      <Button variant="outline" href="/" class="font-inter gap-2 rounded-none border-[2px]">
+      <Button
+        variant="outline"
+        href={base + '/'}
+        class="font-inter gap-2 rounded-none border-[2px]"
+      >
         <ArrowLeft class="size-4" />
         Back to search
       </Button>

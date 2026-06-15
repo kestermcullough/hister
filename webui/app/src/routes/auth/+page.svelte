@@ -4,6 +4,7 @@
   import * as Card from '@hister/components/ui/card';
   import { Lock } from '@lucide/svelte';
   import { login, resetConfig } from '$lib/api';
+  import { base } from '$app/paths';
 
   let authMode = $state<'token' | 'user' | 'none'>('token');
   let token = $state('');
@@ -25,7 +26,7 @@
         oauthOnly = cfg.oauthOnly ?? false;
         basePath = cfg.basePath ?? '';
         if (authMode === 'none' || cfg.authenticated) {
-          window.location.href = '/';
+          window.location.href = basePath + '/';
         }
       })
       .catch(() => {});
@@ -33,7 +34,7 @@
 
   function handleTokenSave() {
     localStorage.setItem('access-token', token);
-    window.location.href = '/';
+    window.location.href = base + '/';
   }
 
   async function handleLogin() {
@@ -42,7 +43,7 @@
     try {
       await login(username, password);
       resetConfig();
-      window.location.href = '/';
+      window.location.href = base + '/';
     } catch {
       error = 'Invalid username or password';
     } finally {

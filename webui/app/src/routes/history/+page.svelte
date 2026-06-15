@@ -8,6 +8,7 @@
   } from '$lib/preview';
   import { onMount, untrack } from 'svelte';
   import { fetchConfig, apiFetch, getUserId } from '$lib/api';
+  import { base } from '$app/paths';
   import { formatTimestamp, formatRelativeTime, KeyHandler, scrollTo } from '$lib/search';
   import type { HistoryItem } from '$lib/types';
   import { Button } from '@hister/components/ui/button';
@@ -65,7 +66,7 @@
   // --- History state helpers ---
 
   function pushHistoryPageHistory() {
-    history.pushState({ type: 'history' }, '', '/history');
+    history.pushState({ type: 'history' }, '', base + '/history');
   }
 
   $effect(() => {
@@ -259,7 +260,7 @@
     loading = true;
     try {
       await fetchConfig();
-      let url = '/history';
+      let url = base + '/history';
       if (openedOnly) {
         url += '?opened=true';
         if (latest) {

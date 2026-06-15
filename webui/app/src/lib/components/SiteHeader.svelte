@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { base } from '$app/paths';
   import { Button } from '@hister/components/ui/button';
   import { LogIn, LogOut, UserRound } from '@lucide/svelte';
   import type { AppConfig } from '$lib/api';
@@ -58,7 +59,7 @@
           size="icon"
           class={iconBtn}
           title="Profile"
-          onclick={() => (window.location.href = '/profile')}
+          onclick={() => (window.location.href = base + '/profile')}
         >
           <UserRound class="size-5" />
         </Button>
@@ -77,7 +78,7 @@
           size="icon"
           class={iconBtn}
           title="Login"
-          onclick={() => (window.location.href = '/auth')}
+          onclick={() => (window.location.href = base + '/auth')}
         >
           <LogIn class="size-5" />
         </Button>
