@@ -52,3 +52,18 @@ func GetDocumentVersions(url string, userID uint) ([]*DocumentVersion, error) {
 	}
 	return versions, nil
 }
+
+// GetDocumentVersionsUntil returns the version diffs needed to reconstruct the
+// document state just before the version with the given ID was applied. It
+// returns all versions for the URL/user whose ID is greater than or equal to
+// versionID, ordered newest first, so callers can apply their reverse diffs in
+// sequence to walk the document back to that point in history.
+func GetDocumentVersionsUntil(url string, userID uint, versionID uint) ([]*DocumentVersion, error) {
+	var versions []*DocumentVersion
+	if err := DB.Where("url = ? AND user_id = ? AND id >= ?", url, userID, versionID).
+		Order("id DESC").
+		Find(&versions).Error; err != nil {
+		return nil, err
+	}
+	return versions, nil
+}

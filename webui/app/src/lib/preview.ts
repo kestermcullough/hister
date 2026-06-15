@@ -3,19 +3,28 @@
 import { tick } from 'svelte';
 import { base } from '$app/paths';
 
-/** Builds the /preview?id=...&title=... URL for a document. */
-export function buildPreviewUrl(id: string, title: string): string {
-  return `${base}/preview?id=${encodeURIComponent(id)}${title ? '&title=' + encodeURIComponent(title) : ''}`;
+/** Builds the /preview?id=...&title=...&version=... URL for a document. */
+export function buildPreviewUrl(id: string, title: string, versionId?: number | null): string {
+  const versionParam = versionId != null ? `&version=${versionId}` : '';
+  return `${base}/preview?id=${encodeURIComponent(id)}${title ? '&title=' + encodeURIComponent(title) : ''}${versionParam}`;
 }
 
 /** Pushes a preview entry onto the browser history stack. */
-export function pushPreviewHistory(id: string, title: string) {
-  history.pushState({ type: 'preview', id, title }, '', buildPreviewUrl(id, title));
+export function pushPreviewHistory(id: string, title: string, versionId?: number | null) {
+  history.pushState(
+    { type: 'preview', id, title, versionId: versionId ?? null },
+    '',
+    buildPreviewUrl(id, title, versionId),
+  );
 }
 
 /** Replaces the current browser history entry with a preview entry. */
-export function replacePreviewHistory(id: string, title: string) {
-  history.replaceState({ type: 'preview', id, title }, '', buildPreviewUrl(id, title));
+export function replacePreviewHistory(id: string, title: string, versionId?: number | null) {
+  history.replaceState(
+    { type: 'preview', id, title, versionId: versionId ?? null },
+    '',
+    buildPreviewUrl(id, title, versionId),
+  );
 }
 
 /**

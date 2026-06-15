@@ -858,6 +858,46 @@ func doSearch(query *indexer.Query, cfg *config.Config, rules *config.Rules, use
 // computeDocumentDiff returns unified diff-match-patch patch strings for the
 // HTML and Text fields independently. Either return value may be empty when
 // the corresponding content is absent or identical between the two versions.
+// applyPatchReverse reconstructs an older document by inverting the stored
+// patch and applying the result to the current content. The diff-match-patch
+// Patch struct has an unexported diffs field, so we work at the text level:
+// swap the position fields in each @@ header and swap every leading '-'/'+'
+// marker on diff lines. PatchApply uses fuzzy matching so position drift
+// across multiple sequential applications is handled automatically.
+// On any error it returns the content unchanged.
+func applyPatchReverse(patchText, content string) string {
+	if patchText == "" {
+		return content
+	}
+	lines := strings.Split(patchText, "\n")
+	reversed := make([]string, 0, len(lines))
+	for _, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "@@ "):
+			// "@@ -a,b +c,d @@" → "@@ -c,d +a,b @@"
+			parts := strings.SplitN(line, " ", 4)
+			if len(parts) == 4 && strings.HasPrefix(parts[1], "-") && strings.HasPrefix(parts[2], "+") {
+				reversed = append(reversed, "@@ -"+parts[2][1:]+" +"+parts[1][1:]+" @@")
+			} else {
+				reversed = append(reversed, line)
+			}
+		case strings.HasPrefix(line, "+"):
+			reversed = append(reversed, "-"+line[1:])
+		case strings.HasPrefix(line, "-"):
+			reversed = append(reversed, "+"+line[1:])
+		default:
+			reversed = append(reversed, line)
+		}
+	}
+	dmp := diffmatchpatch.New()
+	patches, err := dmp.PatchFromText(strings.Join(reversed, "\n"))
+	if err != nil {
+		return content
+	}
+	result, _ := dmp.PatchApply(patches, content)
+	return result
+}
+
 func computeDocumentDiff(old, new *document.Document) (htmlDiff, textDiff string) {
 	dmp := diffmatchpatch.New()
 	makePatch := func(oldContent, newContent string) string {
@@ -1336,13 +1376,33 @@ func serveGet(c *webContext) {
 }
 
 func servePreview(c *webContext) {
-	// TODO apply previous version diffs to display earlier versions of the page.
 	u := c.Request.URL.Query().Get("url")
 	extractorName := c.Request.URL.Query().Get("extractor")
+	versionIDStr := c.Request.URL.Query().Get("version")
 	doc := indexer.GetByURLAndUser(u, c.UserID)
 	if doc == nil {
 		serve500(c)
 		return
+	}
+	// If a specific version is requested, reconstruct the older document content
+	// by applying the stored diffs in reverse order.
+	var viewingVersionID uint
+	var viewingVersionCreatedAt time.Time
+	if versionIDStr != "" {
+		if versionID, err := strconv.ParseUint(versionIDStr, 10, 64); err == nil {
+			if versions, err := model.GetDocumentVersionsUntil(u, c.UserID, uint(versionID)); err == nil && len(versions) > 0 {
+				docCopy := *doc
+				for _, v := range versions {
+					docCopy.HTML = applyPatchReverse(v.HTMLDiff, docCopy.HTML)
+					docCopy.Text = applyPatchReverse(v.TextDiff, docCopy.Text)
+				}
+				doc = &docCopy
+				// versions is ordered newest first; the last element is the target version.
+				target := versions[len(versions)-1]
+				viewingVersionID = target.ID
+				viewingVersionCreatedAt = target.CreatedAt
+			}
+		}
 	}
 	var resp types.PreviewResponse
 	var err error
@@ -1365,6 +1425,10 @@ func servePreview(c *webContext) {
 		"content":  resp.Content,
 		"template": resp.Template,
 		"added":    doc.Added,
+	}
+	if viewingVersionID > 0 {
+		payload["version_id"] = viewingVersionID
+		payload["version_created_at"] = viewingVersionCreatedAt
 	}
 	if versionCount, err := model.CountDocumentVersions(u, c.UserID); err == nil && versionCount > 0 {
 		payload["version_count"] = versionCount

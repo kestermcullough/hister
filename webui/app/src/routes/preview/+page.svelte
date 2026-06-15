@@ -4,15 +4,19 @@
   import { Button } from '@hister/components/ui/button';
   import { ArrowLeft } from '@lucide/svelte';
   import PreviewPanel from '$lib/components/PreviewPanel.svelte';
+  import { replacePreviewHistory } from '$lib/preview';
   import { base } from '$app/paths';
 
   let docUrl = $state('');
   let docTitle = $state('');
+  let panelVersionId = $state<number | null>(null);
 
   function readParams() {
     const params = new URLSearchParams(window.location.search);
     docUrl = params.get('id') || '';
     docTitle = params.get('title') || '';
+    const v = params.get('version');
+    panelVersionId = v ? parseInt(v, 10) || null : null;
   }
 
   onMount(() => {
@@ -32,6 +36,11 @@
       url={docUrl}
       hintTitle={docTitle}
       fullscreen={true}
+      initialViewingVersionId={panelVersionId}
+      onviewingversionchange={(id) => {
+        panelVersionId = id;
+        replacePreviewHistory(docUrl, docTitle, id);
+      }}
       onclose={() => {
         try {
           const ref = document.referrer;

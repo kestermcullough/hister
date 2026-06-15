@@ -3,10 +3,12 @@
   import VideoPreview from './VideoPreview.svelte';
   import { apiFetch } from '$lib/api';
   import { formatTimestamp, formatMetaDate } from '$lib/search';
+  import type { DocumentVersion } from '$lib/types';
   import { ScrollArea } from '@hister/components/ui/scroll-area';
   import { Button } from '@hister/components/ui/button';
   import * as DropdownMenu from '@hister/components/ui/dropdown-menu';
   import { Eye, X, Maximize2, Minimize2, History, MoreVertical, Video } from '@lucide/svelte';
+  import { untrack } from 'svelte';
 
   interface Props {
     url: string;
@@ -15,13 +17,8 @@
     fullscreen?: boolean;
     onfullscreentoggle?: () => void;
     connected?: boolean;
-  }
-
-  interface DocumentVersion {
-    id: number;
-    created_at: string;
-    html_diff: string;
-    text_diff: string;
+    initialViewingVersionId?: number | null;
+    onviewingversionchange?: (id: number | null) => void;
   }
 
   let {
@@ -31,6 +28,8 @@
     fullscreen = false,
     onfullscreentoggle,
     connected = false,
+    initialViewingVersionId = null,
+    onviewingversionchange,
   }: Props = $props();
 
   let title = $state('');
@@ -43,6 +42,7 @@
   let versionCount = $state(0);
   let versions = $state<DocumentVersion[]>([]);
   let showVersions = $state(false);
+  let viewingVersion = $state<DocumentVersion | null>(null);
   let extractorName = $state('');
   let availableExtractors = $state<{ name: string; description: string }[]>([]);
   let extractorsLoaded = $state(false);
@@ -82,15 +82,25 @@
     return new Date(iso).getTime() / 1000;
   }
 
+  // Tracks whether this component instance has already performed its first load.
+  // Plain variable (not $state) so it persists across effect runs without triggering reactivity.
+  let _mountedWithUrl = '';
+
   // Reset all state when the document URL changes, then load with no explicit extractor.
+  // On the very first run (component mount), restore initialViewingVersion if one was supplied
+  // so that toggling fullscreen preserves the archived-version view.
   $effect(() => {
     const u = url;
     const hint = hintTitle;
     if (u) {
+      const isFirstLoad = _mountedWithUrl === '';
+      _mountedWithUrl = u;
       extractorName = '';
       availableExtractors = [];
       extractorsLoaded = false;
-      loadContent(u, hint, '');
+      // untrack so that reading the prop here does not make the effect re-run on prop change.
+      const versionId = isFirstLoad ? untrack(() => initialViewingVersionId) : null;
+      loadContent(u, hint, '', versionId);
     }
   });
 
@@ -102,32 +112,53 @@
     }
   });
 
-  async function loadContent(u: string, hint: string, extractor: string = '') {
+  async function loadContent(
+    u: string,
+    hint: string,
+    extractor: string = '',
+    versionId: number | null = null,
+  ) {
     loading = true;
     content = '';
     template = '';
     templateData = null;
-    meta = null;
-    added = null;
-    title = hint;
-    showVersions = false;
-    versions = [];
-    versionCount = 0;
     showEmbeddedVideos = false;
+    showVersions = false;
+    viewingVersion = null;
+    if (versionId === null) {
+      meta = null;
+      added = null;
+      title = hint;
+      versions = [];
+      versionCount = 0;
+    }
     try {
       const extractorParam = extractor ? `&extractor=${encodeURIComponent(extractor)}` : '';
-      const resp = await apiFetch(`/preview?url=${encodeURIComponent(u)}${extractorParam}`);
+      const versionParam = versionId != null ? `&version=${versionId}` : '';
+      const resp = await apiFetch(
+        `/preview?url=${encodeURIComponent(u)}${extractorParam}${versionParam}`,
+      );
       if (!resp.ok) {
         content = `<p class="text-hister-rose">Failed to load readable content. Status: ${resp.status}</p>`;
       } else {
         const data = await resp.json();
+        template = data.template || '';
+        templateData = template === 'video' ? parseTemplateData(data.content) : null;
+        content = template === 'video' ? '' : data.content || '<p>No content available</p>';
+        // Always update metadata (server always returns current doc's metadata regardless of version).
         title = data.title || hint;
         added = data.added ?? null;
         meta = data.meta ?? null;
         versionCount = data.version_count ?? 0;
-        template = data.template || '';
-        templateData = template === 'video' ? parseTemplateData(data.content) : null;
-        content = template === 'video' ? '' : data.content || '<p>No content available</p>';
+        if (data.version_id) {
+          viewingVersion = {
+            id: data.version_id,
+            created_at: data.version_created_at,
+            html_diff: '',
+            text_diff: '',
+          };
+        }
+        onviewingversionchange?.(viewingVersion?.id ?? null);
       }
     } catch (err) {
       content = `<p class="text-hister-rose">Failed to load: ${err}</p>`;
@@ -334,14 +365,41 @@
         </button>
       {/if}
     </div>
+    {#if viewingVersion}
+      <div
+        class="border-border-brand-muted bg-card-surface-muted flex shrink-0 items-center gap-1.5 border-b-[2px] px-4 py-2"
+      >
+        <History class="text-hister-teal size-3.5 shrink-0" />
+        <span class="font-inter text-text-brand-muted text-xs">
+          Viewing archived version from {formatTimestamp(
+            versionTimestamp(viewingVersion.created_at),
+          )}
+        </span>
+        <span class="text-text-brand-muted text-xs">·</span>
+        <button
+          onclick={() => loadContent(url, hintTitle, extractorName)}
+          class="font-inter text-hister-teal cursor-pointer text-xs hover:underline"
+        >
+          Show current
+        </button>
+      </div>
+    {/if}
     <ScrollArea class="min-h-0 flex-1">
       {#if showVersions}
         <div class="flex flex-col divide-y divide-[var(--border-brand-muted)] p-4">
           {#each versions as v}
             <div class="py-4 first:pt-0 last:pb-0">
-              <p class="font-inter mb-2 text-xs font-semibold tracking-wide uppercase">
-                {formatTimestamp(versionTimestamp(v.created_at))}
-              </p>
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <p class="font-inter text-xs font-semibold tracking-wide uppercase">
+                  {formatTimestamp(versionTimestamp(v.created_at))}
+                </p>
+                <button
+                  onclick={() => loadContent(url, hintTitle, extractorName, v.id)}
+                  class="font-inter text-hister-teal shrink-0 cursor-pointer text-xs hover:underline"
+                >
+                  show this version
+                </button>
+              </div>
               {#if v.text_diff || v.html_diff}
                 <details class="group">
                   <summary

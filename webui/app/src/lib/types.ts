@@ -8,3 +8,10 @@ export interface HistoryItem {
   favicon?: string;
   text?: string;
 }
+
+export interface DocumentVersion {
+  id: number;
+  created_at: string;
+  html_diff: string;
+  text_diff: string;
+}
