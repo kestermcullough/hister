@@ -1176,6 +1176,18 @@ func Search(cfg *config.Config, q *Query) (*Results, error) {
 		}
 	}
 
+	// Bump the total to reflect semantic matches that are not in the
+	// keyword results.
+	semanticOnlyCnt := uint64(0)
+	for _, sh := range r.SemanticHits {
+		if sh.Document != nil {
+			semanticOnlyCnt++
+		}
+	}
+	if docTotal := uint64(len(r.Documents)) + semanticOnlyCnt; docTotal > r.Total {
+		r.Total = docTotal
+	}
+
 	return r, nil
 }
 
