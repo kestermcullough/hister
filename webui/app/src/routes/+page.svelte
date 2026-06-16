@@ -69,6 +69,7 @@
     SlidersHorizontal,
     Copy,
     Check,
+    ArrowUpDown,
   } from '@lucide/svelte';
   import type { HistoryItem } from '$lib/types';
 
@@ -423,6 +424,7 @@
   let facetsLoading = $state(false);
   let filtersDropdownOpen = $state(false);
   let actionsDropdownOpen = $state(false);
+  let sortDropdownOpen = $state(false);
   // Maps facet name (e.g. "domains", "languages") to the requested top-N size.
   let facetSizes = $state(new Map<string, number>());
 
@@ -1927,6 +1929,65 @@
                       </div>
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
+                  <DropdownMenu.Root bind:open={sortDropdownOpen}>
+                    <DropdownMenu.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          variant="ghost"
+                          size="sm"
+                          class="font-inter gap-1 text-xs {sortDropdownOpen || currentSort
+                            ? 'text-hister-indigo'
+                            : 'text-text-brand-muted hover:text-hister-indigo'}"
+                        >
+                          <ArrowUpDown class="size-3" />
+                          Sort
+                          {#if currentSort}
+                            <span
+                              class="bg-hister-indigo text-background flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                              >1</span
+                            >
+                          {/if}
+                          <ChevronDown
+                            class="size-3 transition-transform duration-200 {sortDropdownOpen
+                              ? 'rotate-180'
+                              : ''}"
+                          />
+                        </Button>
+                      {/snippet}
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                      class="border-brutal-border bg-card-surface w-52 rounded-none border-[3px] p-3 shadow-[4px_4px_0_var(--brutal-shadow)]"
+                    >
+                      <div class="space-y-1.5">
+                        <p
+                          class="font-inter text-text-brand-muted flex items-center gap-1.5 text-xs font-semibold"
+                        >
+                          <ArrowUpDown class="size-3" />
+                          Sort by
+                        </p>
+                        <div class="flex flex-col gap-1">
+                          {#each [['', 'Relevance'], ['date', 'Date (newest first)'], ['domain', 'Domain']] as [value, label] (value)}
+                            <button
+                              class="font-inter flex cursor-pointer items-center gap-2 rounded-none border-[2px] px-2 py-1 text-xs transition-colors {currentSort ===
+                              value
+                                ? 'border-hister-indigo bg-hister-indigo text-background'
+                                : 'border-border-brand-muted text-text-brand-secondary hover:border-hister-indigo hover:text-hister-indigo'}"
+                              onclick={() => {
+                                setSort(value);
+                                sortDropdownOpen = false;
+                              }}
+                            >
+                              {label}
+                              {#if currentSort === value}
+                                <Check class="ml-auto size-3" />
+                              {/if}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1935,14 +1996,6 @@
                   >
                     <ExternalLink class="size-3" />
                     Web
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="font-inter text-hister-indigo hover:text-hister-coral text-xs"
-                    onclick={() => setSort(currentSort === '' ? 'domain' : '')}
-                  >
-                    Sort: {currentSort === 'domain' ? 'Domain' : 'Relevance'}
                   </Button>
                 </div>
               </div>
