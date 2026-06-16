@@ -1596,9 +1596,9 @@
                 class="results-toolbar flex min-w-0 flex-wrap items-center justify-between gap-2 px-1 py-2"
               >
                 <span class="font-outfit text-text-brand text-sm font-bold md:text-base">
-                  {semanticOn && config.semanticEnabled
-                    ? totalResults
-                    : lastResults?.total || totalResults} results{query ? ` for "${query}"` : ''}
+                  {lastResults?.total && lastResults.total > totalResults
+                    ? lastResults.total
+                    : totalResults} results{query ? ` for "${query}"` : ''}
                 </span>
                 <div class="flex min-w-0 flex-wrap items-center justify-end gap-2 overflow-hidden">
                   {#if isDesktop && !panelOpen && !disablePreviews}
