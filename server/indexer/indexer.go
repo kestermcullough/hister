@@ -1184,7 +1184,7 @@ func Search(cfg *config.Config, q *Query) (*Results, error) {
 			semanticOnlyCnt++
 		}
 	}
-	r.Total = max(r.Total, uint64(len(r.Documents)) + semanticOnlyCnt)
+	r.Total = max(r.Total, uint64(len(r.Documents))+semanticOnlyCnt)
 
 	return r, nil
 }
