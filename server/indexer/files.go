@@ -127,6 +127,11 @@ func IndexFile(path string, userID uint) error {
 		return AddPDF(doc, content)
 	}
 
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".md" || ext == ".markdown" {
+		return AddMarkdown(doc, content)
+	}
+
 	if !utf8.Valid(content) {
 		return ErrBinaryFile
 	}

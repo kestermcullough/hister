@@ -14,6 +14,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20260427013145-5737772c319b
 	github.com/chromedp/chromedp v0.15.1
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/gomarkdown/markdown v0.0.0-20260614204949-e08cff860f76
 	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.10.0
