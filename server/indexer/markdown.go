@@ -22,8 +22,21 @@ func AddMarkdown(d *document.Document, mdData []byte) error {
 	}
 	d.HTML = renderMarkdown(mdData)
 	d.Text = src
+	d.Title = extractMarkdownTitle(src)
 	d.AddMetadata("type", "markdown")
 	return Add(d)
+}
+
+// extractMarkdownTitle returns the text of the first ATX H1 heading ("# ...").
+// Returns an empty string if none is found.
+func extractMarkdownTitle(src string) string {
+	for _, line := range strings.SplitAfter(src, "\n") {
+		t := strings.TrimRight(line, "\r\n")
+		if after, ok := strings.CutPrefix(t, "# "); ok {
+			return strings.TrimSpace(after)
+		}
+	}
+	return ""
 }
 
 func renderMarkdown(src []byte) string {

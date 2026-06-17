@@ -188,12 +188,14 @@ func (d *Document) processFile(ld LanguageDetector) error {
 	}
 	d.Type = types.Local
 	d.Domain = "local"
-	base := filepath.Base(osPath)
-	parent := filepath.Base(filepath.Dir(osPath))
-	if parent == "." || parent == "/" {
-		d.Title = base
-	} else {
-		d.Title = parent + "/" + base
+	if d.Title == "" {
+		base := filepath.Base(osPath)
+		parent := filepath.Base(filepath.Dir(osPath))
+		if parent == "." || parent == "/" {
+			d.Title = base
+		} else {
+			d.Title = parent + "/" + base
+		}
 	}
 	if d.Added == 0 {
 		d.Added = time.Now().Unix()
