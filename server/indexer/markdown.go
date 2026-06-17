@@ -11,6 +11,7 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 
 	"github.com/asciimoo/hister/server/document"
+	"github.com/asciimoo/hister/server/sanitizer"
 )
 
 // AddMarkdown renders mdData to HTML, stores it in d.HTML, and stores the raw
@@ -21,7 +22,7 @@ func AddMarkdown(d *document.Document, mdData []byte) error {
 		return errors.New("markdown file is empty")
 	}
 	d.HTML = renderMarkdown(mdData)
-	d.Text = src
+	d.Text = sanitizer.SanitizeText(d.HTML)
 	d.Title = extractMarkdownTitle(src)
 	d.AddMetadata("type", "markdown")
 	return Add(d)
