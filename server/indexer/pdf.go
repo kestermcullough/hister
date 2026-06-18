@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/asciimoo/hister/server/document"
 
@@ -36,6 +39,7 @@ func AddPDF(d *document.Document, pdfData []byte) error {
 func extractPDFText(pdfData []byte) (text string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			log.Debug().Msgf("pdf parser panic: %v\n%s", r, debug.Stack())
 			err = fmt.Errorf("pdf parser panic: %v", r)
 		}
 	}()
