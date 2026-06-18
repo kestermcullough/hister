@@ -29,12 +29,17 @@ type Embedder struct {
 	chunkOverlap     int
 	queryPrefix      string
 	documentPrefix   string
+	sem              chan struct{} // nil means unlimited concurrency
 }
 
 const embeddingMaxAttempts = 3
 
 // NewEmbedder creates an Embedder from the semantic search config.
 func NewEmbedder(cfg *config.SemanticSearch) *Embedder {
+	var sem chan struct{}
+	if cfg.MaxEmbeddingConcurrency > 0 {
+		sem = make(chan struct{}, cfg.MaxEmbeddingConcurrency)
+	}
 	return &Embedder{
 		endpoint:         cfg.EmbeddingEndpoint,
 		model:            cfg.EmbeddingModel,
@@ -48,6 +53,7 @@ func NewEmbedder(cfg *config.SemanticSearch) *Embedder {
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		sem: sem,
 	}
 }
 
@@ -160,6 +166,15 @@ func (e *Embedder) doEmbeddingRequestOnce(ctx context.Context, input any) (_ *em
 func (e *Embedder) doEmbeddingRequest(ctx context.Context, input any) (*embeddingResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+
+	if e.sem != nil {
+		select {
+		case e.sem <- struct{}{}:
+			defer func() { <-e.sem }()
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 
 	var err error
