@@ -261,6 +261,23 @@ func TestEnvExtractorOptionTypes(t *testing.T) {
 	}
 }
 
+func TestEnvTypedStringFieldNotCoerced(t *testing.T) {
+	const key = "HISTER__APP__ACCESS_TOKEN"
+	old, had := os.LookupEnv(key)
+	t.Cleanup(func() { restoreEnv(key, old, had) })
+
+	for _, token := range []string{"True", "false", "5", "0123"} {
+		_ = os.Setenv(key, token)
+		cfg, err := parseConfig(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.App.AccessToken != token {
+			t.Errorf("AccessToken = %q, want verbatim %q", cfg.App.AccessToken, token)
+		}
+	}
+}
+
 func TestWebSocketURLHonorsBasePath(t *testing.T) {
 	tests := []struct {
 		name string

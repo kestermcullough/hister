@@ -416,9 +416,24 @@ func bindEnvironment(v *viper.Viper) {
 		}
 		key := strings.TrimPrefix(parts[0], "HISTER__")
 		normalizedKey := strings.ToLower(strings.ReplaceAll(key, "__", "."))
-		v.Set(normalizedKey, parseEnvValue(parts[1]))
+		var val any = parts[1]
+		if isUntypedOptionKey(normalizedKey) {
+			val = parseEnvValue(parts[1])
+		}
+		v.Set(normalizedKey, val)
 		log.Debug().Str("env", parts[0]).Str("key", normalizedKey).Msg("Loaded configuration from environment variable")
 	}
+}
+
+func isUntypedOptionKey(normalizedKey string) bool {
+	seg := strings.Split(normalizedKey, ".")
+	switch {
+	case len(seg) >= 4 && seg[0] == "extractors" && seg[2] == "options":
+		return true
+	case len(seg) >= 3 && seg[0] == "crawler" && seg[1] == "backend_options":
+		return true
+	}
+	return false
 }
 
 func parseEnvValue(s string) any {
