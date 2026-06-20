@@ -1094,7 +1094,7 @@ func Search(cfg *config.Config, q *Query) (*Results, error) {
 	if q.Facets && len(res.Facets) > 0 {
 		r.Facets = extractFacets(res.Facets)
 	}
-	if len(res.Hits) > 0 {
+	if len(res.Hits) > 0 && req.Size > 0 && len(res.Hits) >= req.Size {
 		lastHit := res.Hits[len(res.Hits)-1]
 		lastSort := lastHit.Sort
 		// https://github.com/blevesearch/bleve/issues/2308

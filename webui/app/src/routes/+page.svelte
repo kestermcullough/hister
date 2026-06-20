@@ -689,7 +689,7 @@
       highlightIdx = 0;
       resultsShown = true;
     }
-    hasMore = (res.documents?.length ?? 0) >= 20 && !!res.page_key;
+    hasMore = !!res.page_key;
     pageKey = res.page_key ?? '';
   }
 
