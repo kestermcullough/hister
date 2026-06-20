@@ -78,14 +78,22 @@ type browserDB struct {
 }
 
 type importHistoryMultipleChoicePrompt struct {
-	prefix string
 	choice string
 	urls   int
+	db     *sql.DB
+	q      string
+	c      *client.Client
 }
 
 type DBToImport struct {
-	table    string
-	database string
+	name         string
+	table        string
+	databaseFile string
+	browserType  string
+	db           *sql.DB
+	q            string
+	c            *client.Client
+	count        int
 }
 
 var (
@@ -1777,17 +1785,16 @@ func importHistory(cmd *cobra.Command, args []string) {
 		if len(dbs) == 0 {
 			log.Fatal().Msg("no browser databases found")
 		}
+		var databases []DBToImport
 		for _, db := range dbs {
 			for _, path := range db.paths {
-				importDB([]DBToImport{
-					{
-						table:    db.table_name,
-						database: path,
-					},
-				},
-					cmd)
+				databases = append(databases, DBToImport{
+					table:        db.table_name,
+					databaseFile: path,
+				})
 			}
 		}
+		importDB(databases, cmd)
 
 	case 1, 2:
 		if len(args) == 1 {
@@ -1800,16 +1807,14 @@ func importHistory(cmd *cobra.Command, args []string) {
 		} else {
 			browser := args[0]
 			table_name := browserTableName(browser)
-			println(browser)
-			println(table_name)
 			if table_name == "" {
 				log.Warn().Msg(fmt.Sprintf("Unknown browser, couldn't auto detect table name using %s as table name", browser))
 				table_name = browser
 			}
 			importDB([]DBToImport{
 				{
-					table:    table_name,
-					database: args[1],
+					table:        table_name,
+					databaseFile: args[1],
 				},
 			},
 				cmd)
@@ -1836,8 +1841,8 @@ func importBrowser(browser string, cmd *cobra.Command) {
 			for _, path := range db.paths {
 				importDB([]DBToImport{
 					{
-						table:    db.table_name,
-						database: path,
+						table:        db.table_name,
+						databaseFile: path,
 					},
 				},
 					cmd)
@@ -1864,16 +1869,17 @@ func importHistoryFile(file_path string, cmd *cobra.Command) {
 
 	importDB([]DBToImport{
 		{
-			table:    table,
-			database: file_path,
+			table:        table,
+			databaseFile: file_path,
 		},
 	},
 		cmd)
 }
 
 func importDB(databases []DBToImport, cmd *cobra.Command) {
+	var dbsToImport []importHistoryMultipleChoicePrompt
 	for _, database := range databases {
-		dbFile := database.database
+		dbFile := database.databaseFile
 		table := database.table
 
 		db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?immutable=1&mode=ro", dbFile))
@@ -1916,10 +1922,19 @@ func importDB(databases []DBToImport, cmd *cobra.Command) {
 		if count < 1 {
 			exit(1, "No URLs found to import")
 		}
+		dbsToImport = append(dbsToImport, importHistoryMultipleChoicePrompt{dbFile, count, db, q, c})
+		// if !yesNoPrompt(fmt.Sprintf("%d URLs found. Start import form "+dbFile, count), true) {
+		// 	return
+		// }
+	}
 
-		if !yesNoPrompt(fmt.Sprintf("%d URLs found. Start import form "+dbFile, count), true) {
-			return
-		}
+	chosen := multipleChoiceImport(dbsToImport)
+
+	for _, database := range chosen {
+		q := database.q
+		c := database.c
+		count := database.count
+		db := database.db
 
 		q = strings.Replace(q, "count(url)", "url", 1)
 		q += " ORDER BY visit_count DESC"
@@ -2299,6 +2314,65 @@ func browserTableName(browser string) string {
 	return ""
 }
 
-func multipleChoiceImport(prefix []string, choices []string, description string, numofurls []string) []DBToImport {
+func multipleChoiceImport(choices []importHistoryMultipleChoicePrompt) []DBToImport {
+	r := bufio.NewReader(os.Stdin)
+	var s string
+	var returnDBs []DBToImport
+	println("----Available Histories----")
+	for i, choiceData := range choices {
+		prefix := getBrowserType(choiceData.choice)
+		choice := fmt.Sprint(strconv.Itoa(i), "  |  ", prefix, "  ", choiceData.choice, "  urls: ", choiceData.urls)
+		println(choice)
+		returnDBs = append(returnDBs, DBToImport{
+			name:        prefix,
+			browserType: prefix,
+			count:       choiceData.urls,
+			db:          choiceData.db,
+			q:           choiceData.q,
+			c:           choiceData.c,
+		})
+	}
+	println("==> Histories to exclude: (eg: \"1 2 3\" or browser name)")
+	print("==> ")
 
+	s, _ = r.ReadString('\n')
+	blacklists := strings.Split(s, " ")
+	// Handle remove actions
+
+	for i, data := range returnDBs {
+		if  {
+
+		}
+		if data.name == "" {
+
+		}
+	}
+	return returnDBs
+}
+
+func getBrowserType(path string) string {
+	path = strings.ToLower(path)
+	if strings.Contains(path, "firefox") {
+		return "firefox"
+	} else if strings.Contains(path, "zen") {
+		return "zen"
+	} else if strings.Contains(path, "waterfox") {
+		return "waterfox"
+	} else if strings.Contains(path, "chrome") {
+		return "chrome"
+	} else if strings.Contains(path, "chromium") {
+		return "chromium"
+	} else if strings.Contains(path, "brave") {
+		return "brave"
+	} else if strings.Contains(path, "edge") {
+		return "edge"
+	} else if strings.Contains(path, "vivaldi") {
+		return "vivaldi"
+	} else if strings.Contains(path, "opera") {
+		return "opera"
+	} else if strings.Contains(path, "ladybird") {
+		return "ladybird"
+	} else {
+		return "unknown"
+	}
 }
