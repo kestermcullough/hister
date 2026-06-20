@@ -363,6 +363,12 @@ export class KeyHandler {
           this.actions['select_next_result'](e, isInputFocus);
         }
         break;
+      case 'arrowdown':
+        this.actions['select_next_result'](e, isInputFocus);
+        break;
+      case 'arrowup':
+        this.actions['select_previous_result'](e, isInputFocus);
+        break;
       default:
         break;
     }
