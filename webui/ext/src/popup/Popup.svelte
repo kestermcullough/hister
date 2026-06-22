@@ -16,6 +16,7 @@
   let url = $state(defaultURL);
   let customHeaders: { name: string; value: string }[] = $state([]);
   let indexingEnabled = $state(true);
+  let showIndexedBadge = $state(false);
   let message = $state('');
   let messageType: 'success' | 'error' | 'info' = $state('success');
   let showSettings = $state(false);
@@ -78,7 +79,14 @@
   }
 
   chrome.storage.local.get(
-    ['histerURL', 'histerCustomHeaders', 'indexingEnabled', 'histerCookies', 'histerLabel'],
+    [
+      'histerURL',
+      'histerCustomHeaders',
+      'indexingEnabled',
+      'histerCookies',
+      'histerLabel',
+      'showIndexedBadge',
+    ],
     (data) => {
       if (!data['histerURL']) {
         chrome.storage.local.set({ histerURL: defaultURL });
@@ -86,6 +94,7 @@
       url = data['histerURL'] || defaultURL;
       customHeaders = Array.isArray(data['histerCustomHeaders']) ? data['histerCustomHeaders'] : [];
       indexingEnabled = data['indexingEnabled'] !== false;
+      showIndexedBadge = data['showIndexedBadge'] === true;
       pageLabel = data['histerLabel'] || '';
 
       checkAuth(url, data['histerCookies'] || '');
@@ -199,6 +208,10 @@
   function toggleIndexing() {
     chrome.storage.local.set({ indexingEnabled: indexingEnabled });
     setSuccessMessage(`Automatic indexing ${indexingEnabled ? 'enabled' : 'disabled'}`);
+  }
+
+  function toggleShowIndexedBadge() {
+    chrome.storage.local.set({ showIndexedBadge: showIndexedBadge });
   }
 
   function authenticate() {
@@ -360,6 +373,22 @@
           Automatic indexing
         </Label>
         <Switch id="indexing" bind:checked={indexingEnabled} onCheckedChange={toggleIndexing} />
+      </div>
+      <div class="mt-3 flex items-center justify-between" class:opacity-40={indexingEnabled}>
+        <Label
+          for="show-indexed-badge"
+          class="font-outfit text-text-brand text-sm font-bold {indexingEnabled
+            ? 'cursor-not-allowed'
+            : 'cursor-pointer'}"
+        >
+          Show indicator for indexed pages
+        </Label>
+        <Switch
+          id="show-indexed-badge"
+          bind:checked={showIndexedBadge}
+          onCheckedChange={toggleShowIndexedBadge}
+          disabled={indexingEnabled}
+        />
       </div>
     </div>
 

@@ -138,9 +138,11 @@ async function updateTabIcon(tabId: number, url: string): Promise<void> {
     'histerToken',
     'indexingEnabled',
     'histerCustomHeaders',
+    'showIndexedBadge',
   ]);
 
   const serverURL: string = data['histerURL'] || '';
+  const showIndexedBadge: boolean = data['showIndexedBadge'] === true;
   const customHeaders: { name: string; value: string }[] = Array.isArray(
     data['histerCustomHeaders'],
   )
@@ -152,7 +154,7 @@ async function updateTabIcon(tabId: number, url: string): Promise<void> {
 
   if (data['indexingEnabled'] === false) {
     await setGreyIcon(tabId);
-    if (serverURL) {
+    if (showIndexedBadge && serverURL) {
       const indexed = await isUrlPreviouslyIndexed(url, serverURL, customHeaders);
       if (indexed) setPreviouslyIndexedBadge(tabId);
     }
@@ -169,12 +171,7 @@ async function updateTabIcon(tabId: number, url: string): Promise<void> {
     await setGreyIcon(tabId);
   } else {
     setNormalIcon(tabId);
-    const indexed = await isUrlPreviouslyIndexed(url, serverURL, customHeaders);
-    if (indexed) {
-      setPreviouslyIndexedBadge(tabId);
-    } else {
-      clearBadge(tabId);
-    }
+    clearBadge(tabId);
   }
 }
 
@@ -245,7 +242,7 @@ async function indexPDFTab(tabId: number, tab: chrome.tabs.Tab): Promise<void> {
     const r = await sendPDFData(u + 'api/add_pdf', doc, pdfBase64, customHeaders);
     if (r.status === 201) {
       setNormalIcon(tabId);
-      setPreviouslyIndexedBadge(tabId);
+      clearBadge(tabId);
     } else if (r.status === 406) {
       skipRulesCache = null;
       setGreyIcon(tabId);
@@ -280,7 +277,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area !== 'local') return;
-  if (!('indexingEnabled' in changes || 'histerURL' in changes)) return;
+  if (!('indexingEnabled' in changes || 'histerURL' in changes || 'showIndexedBadge' in changes))
+    return;
   if ('histerURL' in changes) skipRulesCache = null;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -413,7 +411,7 @@ function cjsMsgHandler(request, sender, sendResponse) {
             .then((r) => {
               if (r.status === 201) {
                 setNormalIcon(sender.tab.id);
-                setPreviouslyIndexedBadge(sender.tab.id);
+                clearBadge(sender.tab.id);
               } else if (r.status === 406) {
                 // URL matched a server-side skip rule; invalidate cache and grey out
                 skipRulesCache = null;
