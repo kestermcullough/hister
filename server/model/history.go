@@ -113,7 +113,7 @@ func SetHistoryPinned(userID uint, query, url, title string, pinned bool) error 
 					Joins("JOIN histories ON history_links.history_id = histories.id").
 					Joins("JOIN links ON history_links.link_id = links.id").
 					Where("histories.user_id = ? AND histories.query = ? AND links.url = ?", userID, query, url),
-			).Update("pinned", false).Error
+			).UpdateColumn("pinned", false).Error
 	}
 	l := GetOrCreateLink(url, title)
 	h := GetOrCreateHistory(userID, query)
