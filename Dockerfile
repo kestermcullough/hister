@@ -52,7 +52,7 @@ LABEL org.opencontainers.image.title="Hister" \
 
 WORKDIR /hister
 
-RUN adduser -D -u 65532 hister && mkdir -p /hister/data && chown -R 65532:65532 /hister
+RUN apk add --no-cache yt-dlp && adduser -D -u 65532 hister && mkdir -p /hister/data && chown -R 65532:65532 /hister
 COPY --chown=65532:65532 --from=builder /app/hister .
 USER 65532:65532
 
@@ -72,7 +72,7 @@ CMD ["listen"]
 FROM alpine:3.21 AS root
 WORKDIR /hister
 
-RUN mkdir -p /hister/data
+RUN apk add --no-cache yt-dlp && mkdir -p /hister/data
 COPY --from=builder /app/hister .
 
 USER root
@@ -93,7 +93,7 @@ CMD ["listen"]
 FROM alpine:3.21 AS debug
 WORKDIR /hister
 
-RUN apk add --no-cache curl bash && mkdir -p /hister/data
+RUN apk add --no-cache curl bash yt-dlp && mkdir -p /hister/data
 
 COPY --from=builder /app/hister .
 
