@@ -8,41 +8,53 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var migrationFunctions = []func() error{
-	// v1: introduce HistoryLink.Pinned. Existing history links were all surfaced
-	// as pinned priority results, so preserve that appearance by marking them as
-	// pinned. Newly recorded (visited but not pinned) links default to false.
-	func() error {
-		if err := DB.AutoMigrate(&HistoryLink{}); err != nil {
-			return err
-		}
-		return DB.Model(&HistoryLink{}).Where("pinned = ?", false).Update("pinned", true).Error
+type migration struct {
+	pre  func() error
+	post func() error
+}
+
+var migrations = []migration{
+	{
+		post: func() error {
+			return DB.Model(&HistoryLink{}).Where("pinned = ?", false).Update("pinned", true).Error
+		},
 	},
 }
 
-func migrate() error {
+func migrationVersion() (int64, bool) {
 	var dbVer int64
-	err := DB.Model(&Database{}).
-		Select("version").
-		First(&dbVer).Error
-	if err != nil {
-		// cannot query the version -> uninitialized database -> no need to migrate
-		DB.Save(&Database{Version: 0})
-		//lint:ignore nilerr // no need to check error
-		return nil
+	if err := DB.Model(&Database{}).Select("version").First(&dbVer).Error; err != nil {
+		return 0, false
 	}
+	return dbVer, true
+}
+
+func migratePre(dbVer int64) error {
+	for i := dbVer; i < int64(len(migrations)); i++ {
+		if migrations[i].pre == nil {
+			continue
+		}
+		log.Info().Msgf("Running pre-migration for DB version %d", i+1)
+		if err := migrations[i].pre(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migratePost(dbVer int64) error {
 	migCount := 0
-	for i, m := range migrationFunctions {
-		if int64(i) >= dbVer {
-			log.Info().Msgf("Migrating DB to version %d", i+1)
-			err := m()
-			if err != nil {
+	for i := dbVer; i < int64(len(migrations)); i++ {
+		if migrations[i].post != nil {
+			log.Info().Msgf("Running post-migration for DB version %d", i+1)
+			if err := migrations[i].post(); err != nil {
 				return err
 			}
-			dbVer = int64(i) + 1
-			DB.Model(&Database{}).Where("id = 1").Update("version", dbVer)
-			migCount++
 		}
+		if err := DB.Model(&Database{}).Where("id = 1").Update("version", i+1).Error; err != nil {
+			return err
+		}
+		migCount++
 	}
 	if migCount > 0 {
 		log.Debug().Int("Migrations performed", migCount).Msg("DB migrations completed")

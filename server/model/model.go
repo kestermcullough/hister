@@ -48,17 +48,26 @@ func Init(c *config.Config) error {
 	default:
 		return ErrDBType
 	}
-	err = migrate()
-	if err != nil {
-		return fmt.Errorf("custom migration of database '%s' has failed: %w", dsn, err)
+	dbVer, initialized := migrationVersion()
+	if initialized {
+		if err = migratePre(dbVer); err != nil {
+			return fmt.Errorf("pre-automigrate migration of database '%s' has failed: %w", dsn, err)
+		}
 	}
-	err = automigrate()
-	if err != nil {
+	if err = automigrate(); err != nil {
 		return fmt.Errorf("auto migration of database '%s' has failed: %w", dsn, err)
 	}
-	err = DB.SetupJoinTable(&History{}, "Links", &HistoryLink{})
-	if err != nil {
+	if err = DB.SetupJoinTable(&History{}, "Links", &HistoryLink{}); err != nil {
 		return fmt.Errorf("failed to setup join table for URL history: %w", err)
+	}
+	if initialized {
+		if err = migratePost(dbVer); err != nil {
+			return fmt.Errorf("post-automigrate migration of database '%s' has failed: %w", dsn, err)
+		}
+	} else {
+		// Fresh database: AutoMigrate just created the latest schema, so record
+		// the current version to avoid replaying historical migrations against it.
+		DB.Save(&Database{Version: uint(len(migrations))})
 	}
 	return nil
 }
