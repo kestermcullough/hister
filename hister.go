@@ -811,16 +811,11 @@ Non-admin users are restricted to their own documents by the server.`,
 }
 
 var createUserCmd = &cobra.Command{
-	Use:   "create-user USERNAME",
-	Short: "Create a new user",
-	Long:  "Create a new user account (requires user_handling to be enabled)",
-	Args:  cobra.ExactArgs(1),
-	PreRun: func(_ *cobra.Command, _ []string) {
-		if !cfg.App.UserHandling {
-			exit(1, "user_handling is not enabled in configuration")
-		}
-		initDB()
-	},
+	Use:    "create-user USERNAME",
+	Short:  "Create a new user",
+	Long:   "Create a new user account (requires user_handling to be enabled)",
+	Args:   cobra.ExactArgs(1),
+	PreRun: requireUserHandlingAndInitDB,
 	Run: func(cmd *cobra.Command, args []string) {
 		username := args[0]
 		password, err := promptPassword("Password: ")
@@ -846,16 +841,11 @@ var createUserCmd = &cobra.Command{
 }
 
 var deleteUserCmd = &cobra.Command{
-	Use:   "delete-user USERNAME",
-	Short: "Delete a user",
-	Long:  "Delete a user account (requires user_handling to be enabled). Use --purge to also remove all indexed documents belonging to the user.",
-	Args:  cobra.ExactArgs(1),
-	PreRun: func(_ *cobra.Command, _ []string) {
-		if !cfg.App.UserHandling {
-			exit(1, "user_handling is not enabled in configuration")
-		}
-		initDB()
-	},
+	Use:    "delete-user USERNAME",
+	Short:  "Delete a user",
+	Long:   "Delete a user account (requires user_handling to be enabled). Use --purge to also remove all indexed documents belonging to the user.",
+	Args:   cobra.ExactArgs(1),
+	PreRun: requireUserHandlingAndInitDB,
 	Run: func(cmd *cobra.Command, args []string) {
 		username := args[0]
 		u, err := model.GetUser(username)
@@ -886,16 +876,11 @@ var deleteUserCmd = &cobra.Command{
 }
 
 var showUserCmd = &cobra.Command{
-	Use:   "show-user USERNAME",
-	Short: "Show user information",
-	Long:  "Display information about a user account (requires user_handling to be enabled)",
-	Args:  cobra.ExactArgs(1),
-	PreRun: func(_ *cobra.Command, _ []string) {
-		if !cfg.App.UserHandling {
-			exit(1, "user_handling is not enabled in configuration")
-		}
-		initDB()
-	},
+	Use:    "show-user USERNAME",
+	Short:  "Show user information",
+	Long:   "Display information about a user account (requires user_handling to be enabled)",
+	Args:   cobra.ExactArgs(1),
+	PreRun: requireUserHandlingAndInitDB,
 	Run: func(cmd *cobra.Command, args []string) {
 		u, err := model.GetUser(args[0])
 		if err != nil {
@@ -917,16 +902,11 @@ var showUserCmd = &cobra.Command{
 }
 
 var updateUserCmd = &cobra.Command{
-	Use:   "update-user USERNAME",
-	Short: "Update a user",
-	Long:  "Update a user account (requires user_handling to be enabled). Use flags to change username, regenerate token, or toggle admin status.",
-	Args:  cobra.ExactArgs(1),
-	PreRun: func(_ *cobra.Command, _ []string) {
-		if !cfg.App.UserHandling {
-			exit(1, "user_handling is not enabled in configuration")
-		}
-		initDB()
-	},
+	Use:    "update-user USERNAME",
+	Short:  "Update a user",
+	Long:   "Update a user account (requires user_handling to be enabled). Use flags to change username, regenerate token, or toggle admin status.",
+	Args:   cobra.ExactArgs(1),
+	PreRun: requireUserHandlingAndInitDB,
 	Run: func(cmd *cobra.Command, args []string) {
 		username := args[0]
 		changed := false
@@ -1046,20 +1026,9 @@ Use '-' as OUTPUT_FILE to write to stdout.`,
 			queryStr = "*"
 		}
 
-		var dateFrom, dateTo int64
-		if v, _ := cmd.Flags().GetString("start-date"); v != "" {
-			t, err := time.Parse("2006-01-02", v)
-			if err != nil {
-				exit(1, "Invalid --start-date: "+err.Error())
-			}
-			dateFrom = t.Unix()
-		}
-		if v, _ := cmd.Flags().GetString("end-date"); v != "" {
-			t, err := time.Parse("2006-01-02", v)
-			if err != nil {
-				exit(1, "Invalid --end-date: "+err.Error())
-			}
-			dateTo = t.AddDate(0, 0, 1).Unix() - 1
+		dateRange, err := parseDateRangeFlags(cmd)
+		if err != nil {
+			exit(1, err.Error())
 		}
 
 		var out *os.File
@@ -1099,8 +1068,8 @@ Use '-' as OUTPUT_FILE to write to stdout.`,
 				PageKey:     pageKey,
 				IncludeHTML: true,
 				IncludeText: true,
-				DateFrom:    dateFrom,
-				DateTo:      dateTo,
+				DateFrom:    dateRange.From,
+				DateTo:      dateRange.To,
 			})
 			if err != nil {
 				exit(1, "Search failed: "+err.Error())
@@ -1168,20 +1137,9 @@ documents whose "added" timestamp falls within the given date range.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		skip, _ := cmd.Flags().GetBool("skip-existing")
 
-		var startDate, endDate int64 = 0, 0
-		if v, _ := cmd.Flags().GetString("start-date"); v != "" {
-			t, err := time.Parse("2006-01-02", v)
-			if err != nil {
-				exit(1, "Invalid --start-date: "+err.Error())
-			}
-			startDate = t.Unix()
-		}
-		if v, _ := cmd.Flags().GetString("end-date"); v != "" {
-			t, err := time.Parse("2006-01-02", v)
-			if err != nil {
-				exit(1, "Invalid --end-date: "+err.Error())
-			}
-			endDate = t.AddDate(0, 0, 1).Unix() - 1
+		dateRange, err := parseDateRangeFlags(cmd)
+		if err != nil {
+			exit(1, err.Error())
 		}
 
 		c := newClient(client.WithTimeout(0))
@@ -1194,7 +1152,7 @@ documents whose "added" timestamp falls within the given date range.`,
 			if ext := strings.ToLower(filepath.Ext(inputFile)); ext == ".html" || ext == ".htm" {
 				i, s, e = importHTMLFile(c, inputFile, skip)
 			} else {
-				i, s, e = importJSONFile(c, inputFile, skip, startDate, endDate)
+				i, s, e = importJSONFile(c, inputFile, skip, dateRange.From, dateRange.To)
 			}
 			imported += i
 			skipped += s
@@ -1402,6 +1360,37 @@ func exit(errno int, msg string) {
 func isConnectionError(err error) bool {
 	var urlErr *url.Error
 	return errors.As(err, &urlErr)
+}
+
+type dateRangeFlags struct {
+	From int64
+	To   int64
+}
+
+func parseDateRangeFlags(cmd *cobra.Command) (dateRangeFlags, error) {
+	var r dateRangeFlags
+	if v, _ := cmd.Flags().GetString("start-date"); v != "" {
+		t, err := time.Parse("2006-01-02", v)
+		if err != nil {
+			return r, fmt.Errorf("Invalid --start-date: %w", err)
+		}
+		r.From = t.Unix()
+	}
+	if v, _ := cmd.Flags().GetString("end-date"); v != "" {
+		t, err := time.Parse("2006-01-02", v)
+		if err != nil {
+			return r, fmt.Errorf("Invalid --end-date: %w", err)
+		}
+		r.To = t.AddDate(0, 0, 1).Unix() - 1
+	}
+	return r, nil
+}
+
+func requireUserHandlingAndInitDB(_ *cobra.Command, _ []string) {
+	if !cfg.App.UserHandling {
+		exit(1, "user_handling is not enabled in configuration")
+	}
+	initDB()
 }
 
 func init() {
