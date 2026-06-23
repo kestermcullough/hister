@@ -63,6 +63,70 @@ hister index --header "Accept-Language=en" --cookie "session=abc; Domain=example
 The crawler configuration from your config file (`crawler.backend`, `crawler.backend_options`, etc.)
 is used as the default; all flags override or extend those values per invocation.
 
+### Exporting Documents
+
+Use `hister export` to write indexed documents to a JSON file. This is useful for
+backups or for moving documents between Hister instances. By default every indexed
+document is exported:
+
+```bash
+hister export backup.json
+```
+
+You can limit the export to documents matching a search query by passing it after the
+output file (see the [query language](query-language) reference):
+
+```bash
+hister export rust.json "rust lang:en"
+```
+
+Each document is written as a single JSON line; lines that do not start with `{` are
+structural markers (`[`, `]`, `,`) and can be safely skipped by parsers. Pass `-` as the
+output file to write to standard output instead, which can be piped into other tools:
+
+```bash
+hister export | gzip > backup.json.gz
+```
+
+Use `--start-date` / `--end-date` (`YYYY-MM-DD`) to only export documents whose `added`
+timestamp falls within the given date range. The resulting file can be re-imported with
+`hister import` (see below).
+
+### Importing Documents
+
+Use `hister import` to add documents from files on disk. It accepts an arbitrary
+number of files, which are imported in order and reported as a combined total:
+
+```bash
+hister import export.json page.html another.html
+```
+
+Three input formats are supported, detected by file extension:
+
+- **JSON export files** files previously created by `hister export`. They are read
+  line by line and each document is submitted to the running server, where its content
+  is re-processed from the stored HTML.
+- **7z archives** (`.7z`) a 7z-compressed archive containing a single JSON export file.
+- **HTML files** (`.html` or `.htm`) a saved web page. The document URL is extracted
+  from the HTML itself (the `<link rel="canonical">` tag, OpenGraph/Twitter `url` meta
+  tags, etc.) and the page is submitted to the running server for processing. The import
+  fails for a given file if the HTML cannot be parsed or no URL can be found in it.
+
+```bash
+# Import a single saved web page
+hister import ~/Downloads/article.html
+```
+
+Useful flags:
+
+- `--skip-existing` do not overwrite documents that are already in the index.
+- `--start-date` / `--end-date` (`YYYY-MM-DD`) only import documents whose `added`
+  timestamp falls within the given date range (applies to JSON exports).
+
+> **Note:** `hister import` talks to a running Hister server, so make sure the server
+> is started before importing. To bulk-import browsing history instead, see
+> [Importing Browser History](importing-browser-history).
+
 ### Crawling Websites
 
 Use `--recursive` (`-r`) to recursively crawl a website starting from a given URL.
