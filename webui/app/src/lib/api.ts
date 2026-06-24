@@ -6,6 +6,10 @@ export interface AppConfig {
   openResultsOnNewTab: boolean;
   hotkeys: Record<string, string>;
   authMode: 'token' | 'user' | 'none';
+  authenticated: boolean;
+  public: boolean;
+  canWrite: boolean;
+  historyEnabled: boolean;
   username?: string;
   userId?: number;
   oauthOnly?: boolean;
@@ -79,23 +83,32 @@ export async function login(username: string, password: string): Promise<{ usern
 }
 
 export async function logout(): Promise<void> {
-  await apiFetch('/logout', { method: 'POST' });
-  _config = null;
+  try {
+    await apiFetch('/logout', { method: 'POST', redirectOnForbidden: false });
+  } finally {
+    localStorage.removeItem('access-token');
+    _config = null;
+  }
 }
 
-export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+interface ApiFetchOptions extends RequestInit {
+  redirectOnForbidden?: boolean;
+}
+
+export async function apiFetch(url: string, options: ApiFetchOptions = {}): Promise<Response> {
+  const { redirectOnForbidden = true, ...fetchOptions } = options;
   const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   };
-  if (_csrf && options.method && options.method.toUpperCase() !== 'GET') {
+  if (_csrf && fetchOptions.method && fetchOptions.method.toUpperCase() !== 'GET') {
     headers['X-CSRF-Token'] = _csrf;
   }
   const token = localStorage.getItem('access-token');
   if (token) {
     headers['X-Access-Token'] = token;
   }
-  const res = await fetch('api' + url, { ...options, headers, credentials: 'include' });
-  if (res.status === 403) {
+  const res = await fetch('api' + url, { ...fetchOptions, headers, credentials: 'include' });
+  if (res.status === 403 && redirectOnForbidden) {
     window.location.href = base + '/auth';
     throw new Error('Authentication required');
   }

@@ -268,7 +268,11 @@
   async function loadItems(latest: string = '') {
     loading = true;
     try {
-      await fetchConfig();
+      const cfg = await fetchConfig();
+      if (!cfg.historyEnabled) {
+        window.location.href = base + '/';
+        return;
+      }
       let url = '/history';
       if (openedOnly) {
         url += '?opened=true';
@@ -449,6 +453,10 @@
 
   onMount(async () => {
     const cfg = await fetchConfig();
+    if (!cfg.historyEnabled) {
+      window.location.href = base + '/';
+      return;
+    }
     openResultsOnNewTab = (cfg as any).openResultsOnNewTab ?? false;
     keyHandler = new KeyHandler((cfg as any).hotkeys ?? {}, hotkeyActions);
     disablePreviews = (cfg as any).disablePreviews ?? false;

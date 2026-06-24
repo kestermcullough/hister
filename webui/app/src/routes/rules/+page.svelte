@@ -6,6 +6,7 @@
     (node.querySelector('input') as HTMLInputElement | null)?.focus();
   };
   import { fetchConfig, apiFetch } from '$lib/api';
+  import { base } from '$app/paths';
   import { Button } from '@hister/components/ui/button';
   import { Input } from '@hister/components/ui/input';
   import { Badge } from '@hister/components/ui/badge';
@@ -133,7 +134,11 @@
   });
 
   onMount(async () => {
-    await fetchConfig();
+    const cfg = await fetchConfig();
+    if (cfg.public && !cfg.canWrite) {
+      window.location.href = base + '/auth';
+      return;
+    }
     await loadRules();
   });
 

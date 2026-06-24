@@ -180,6 +180,12 @@ Users cannot see each other's documents.
 
 The document count shown on the home page reflects the authenticated user's own document count rather than the total across all users.
 
+## Public Mode
+
+When `app.public: true` is enabled together with user handling, anonymous visitors can search only global documents stored under user ID `0`. Documents owned by named users remain private to those authenticated users.
+
+Authenticated users can still add, delete, label, and manage their own content according to the normal user handling rules. Web history is disabled for everyone while public mode is enabled.
+
 ## Personal Access Tokens
 
 Every user account has a personal access token used for API authentication. Tokens are random and stored in the database.
@@ -208,4 +214,4 @@ The `/api/profile` endpoint returns information about the currently authenticate
 - OAuth state tokens are single-use random values stored in the session cookie. They prevent cross-site request forgery during the OAuth redirect flow.
 - OAuth accounts have no password set. If you need to disable an OAuth user's access, use `hister delete-user` or remove the provider from the configuration.
 - Enable `server.oauth_only: true` to enforce OAuth-only login and prevent password authentication. Per-user access tokens and the global `app.access_token` remain valid for API and CLI access.
-- User handling is intended for a trusted group of users on a shared instance (family, team). For public-facing deployments, place Hister behind a reverse proxy with HTTPS.
+- User handling is intended for a trusted group of users on a shared instance (family, team). For public-facing deployments, place Hister behind a reverse proxy with HTTPS and only index content that may be shown publicly.

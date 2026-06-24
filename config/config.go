@@ -51,6 +51,7 @@ type App struct {
 	SearchURL              string `yaml:"search_url" mapstructure:"search_url"`
 	AccessToken            string `yaml:"access_token" mapstructure:"access_token"`
 	UserHandling           bool   `yaml:"user_handling" mapstructure:"user_handling"`
+	Public                 bool   `yaml:"public" mapstructure:"public"`
 	LogLevel               string `yaml:"log_level" mapstructure:"log_level"`
 	LogFile                string `yaml:"log_file" mapstructure:"log_file"`
 	LogFormat              string `yaml:"log_format" mapstructure:"log_format"`
@@ -639,6 +640,16 @@ func (c *Config) validateOAuth() error {
 		if name == "oidc" && entry.ConfigurationURL == "" && entry.AuthURL == "" {
 			return fmt.Errorf("oauth provider oidc: configuration_url or auth_url is required")
 		}
+	}
+	return nil
+}
+
+func (c *Config) ValidatePublicMode() error {
+	if !c.App.Public {
+		return nil
+	}
+	if c.App.AccessToken == "" && !c.App.UserHandling {
+		return errors.New("app.public requires app.access_token or app.user_handling")
 	}
 	return nil
 }

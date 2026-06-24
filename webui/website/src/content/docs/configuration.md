@@ -67,6 +67,7 @@ hister listen --config /path/to/my/config.yml
 app:
   directory: '~/.config/hister'
   search_url: 'https://google.com/search?q={query}'
+  public: false
   log_level: 'info'
   log_format: 'text'
   log_file: ''
@@ -124,19 +125,20 @@ sensitive_content_patterns:
 
 ## `app` Section
 
-| Key                       | Type   | Default                               | Description                                                                                                                                              |
-| ------------------------- | ------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                                                                       |
-| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                                                           |
-| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                                           |
-| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                                            |
-| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                                 |
-| `log_format`              | string | `text`                                | Log output format. `text` emits colored, human-readable lines; `json` emits one JSON object per log entry, suitable for log aggregators.                 |
-| `log_file`                | string | (none)                                | Path to a log file. When set, log output is written to this file instead of stderr. The file is created if it does not exist and appended to if it does. |
-| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                                        |
-| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                                     |
-| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                                           |
-| `disable_previews`        | bool   | `false`                               | Disable the preview panel entirely. No HTML is stored on disk, and the preview UI is hidden. See [Disable Previews](#disable-previews).                  |
+| Key                       | Type   | Default                               | Description                                                                                                                                               |
+| ------------------------- | ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `directory`               | string | platform default                      | Directory where Hister stores its data (index, rules, secret key).                                                                                        |
+| `search_url`              | string | `https://google.com/search?q={query}` | Fallback web search URL. Use `{query}` as the placeholder for the search term.                                                                            |
+| `access_token`            | string | (none)                                | Optional access token for securing the API. See [Access Token](#access-token).                                                                            |
+| `user_handling`           | bool   | `false`                               | Enable multi-user mode. See [User Handling](/docs/user-handling) for details.                                                                             |
+| `public`                  | bool   | `false`                               | Allow unauthenticated users to search public documents, use API docs, MCP search, previews, and file serving. Requires `access_token` or `user_handling`. |
+| `log_level`               | string | `info`                                | Log verbosity. One of: `debug`, `info`, `warn`, `error`.                                                                                                  |
+| `log_format`              | string | `text`                                | Log output format. `text` emits colored, human-readable lines; `json` emits one JSON object per log entry, suitable for log aggregators.                  |
+| `log_file`                | string | (none)                                | Path to a log file. When set, log output is written to this file instead of stderr. The file is created if it does not exist and appended to if it does.  |
+| `debug_sql`               | bool   | `false`                               | Enable verbose SQL query logging.                                                                                                                         |
+| `open_results_on_new_tab` | bool   | `false`                               | Open search results in a new browser tab instead of the current tab.                                                                                      |
+| `redirect_on_no_results`  | bool   | `true`                                | Redirect to the configured `search_url` when a query returns no results. Disable to always stay within Hister.                                            |
+| `disable_previews`        | bool   | `false`                               | Disable the preview panel entirely. No HTML is stored on disk, and the preview UI is hidden. See [Disable Previews](#disable-previews).                   |
 
 ## `server` Section
 
@@ -347,6 +349,31 @@ app:
 ```
 
 The web UI automatically prompts for and stores the access token when configured. The access token has to be added to the browser extension as well.
+
+## Public Mode
+
+Public mode lets anonymous visitors search the shared index while write access remains authenticated. Enable it with `app.public: true` or by starting the server with `hister listen --public`. A public instance must also configure either `app.access_token` or `app.user_handling`, otherwise Hister refuses to start.
+
+```yaml
+app:
+  public: true
+  access_token: 'your-secret-token-here'
+
+server:
+  base_url: https://hister.example.com
+```
+
+With user handling, anonymous visitors can only see documents stored under user ID `0`. User-owned documents remain visible only to the matching authenticated user.
+
+```yaml
+app:
+  public: true
+  user_handling: true
+```
+
+Public mode exposes search, suggestions, document reads, previews, file serving, API documentation, and MCP search. It does not allow anonymous users to add, edit, label, delete, change rules, reindex, clean up, or access profile APIs. Web history is fully disabled while public mode is enabled.
+
+Only index content that is meant to be public. Local files, previews, and MCP search can expose indexed document content to anonymous visitors.
 
 For command-line usage with `curl` or similar tools, include the header in your requests:
 

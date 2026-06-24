@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fetchConfig, apiFetch } from '$lib/api';
+  import { base } from '$app/paths';
   import { Input } from '@hister/components/ui/input';
   import { Textarea } from '@hister/components/ui/textarea';
   import { Label } from '@hister/components/ui/label';
@@ -23,7 +24,10 @@
 
   onMount(async () => {
     try {
-      await fetchConfig();
+      const cfg = await fetchConfig();
+      if (cfg.public && !cfg.canWrite) {
+        window.location.href = base + '/auth';
+      }
     } catch {
       // The form can still render when the standalone dev UI is running without the API.
     }

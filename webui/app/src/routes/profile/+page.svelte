@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { apiFetch } from '$lib/api';
+  import { onMount } from 'svelte';
+  import { apiFetch, fetchConfig } from '$lib/api';
+  import { base } from '$app/paths';
   import { Button } from '@hister/components/ui/button';
   import * as Card from '@hister/components/ui/card';
   import { PageHeader } from '@hister/components';
@@ -15,7 +17,12 @@
   let isAdmin = $state(false);
   let version = $state('');
 
-  $effect(() => {
+  onMount(async () => {
+    const cfg = await fetchConfig();
+    if (cfg.authMode !== 'user' || !cfg.authenticated) {
+      window.location.href = base + '/auth';
+      return;
+    }
     apiFetch('/profile')
       .then((r) => r.json())
       .then((data) => {

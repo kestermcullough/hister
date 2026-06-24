@@ -91,6 +91,30 @@ In particular, some, like [Caddy] or [Traefik], have built-in support for automa
 2. (Re)start the Hister server to apply the change.
 3. Set up your favourite reverse proxy. Here are some examples:
 
+### Public Hister instances
+
+If you want anonymous visitors to search a shared Hister index, enable public mode and keep authentication configured for write access:
+
+```yaml
+app:
+  public: true
+  access_token: 'your-secret-token-here'
+
+server:
+  address: 127.0.0.1:4433
+  base_url: https://hister.example.com
+```
+
+You can also start a configured authenticated server with:
+
+```bash
+hister listen --public
+```
+
+Public mode allows unauthenticated search, previews, file serving, API documentation, and MCP search. It does not allow anonymous writes or admin operations. Web history is disabled while public mode is active.
+
+Only index content intended for public access. Local files, stored previews, and MCP responses can reveal indexed content to anonymous users.
+
 ### Caddy
 
 In your `Caddyfile`:

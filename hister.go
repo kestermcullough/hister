@@ -168,7 +168,13 @@ var listenCmd = &cobra.Command{
 	Use:   "listen",
 	Short: "Start server",
 	Long:  ``,
-	PreRun: func(_ *cobra.Command, _ []string) {
+	PreRun: func(cmd *cobra.Command, _ []string) {
+		if public, _ := cmd.Flags().GetBool("public"); public {
+			cfg.App.Public = true
+		}
+		if err := cfg.ValidatePublicMode(); err != nil {
+			exit(1, "Failed to initialize config: "+err.Error())
+		}
 		initIndex()
 	},
 	Run: func(cmd *cobra.Command, _ []string) {
@@ -1423,6 +1429,7 @@ func init() {
 	crawlCmd.AddCommand(crawlDeleteCmd)
 
 	listenCmd.Flags().StringP("address", "a", dcfg.Server.Address, "Listen address")
+	listenCmd.Flags().Bool("public", false, "allow unauthenticated access to public search interfaces")
 
 	listURLsCmd.Flags().Bool("offline", false, "connect to the indexer directly without using the HTTP API (server should be stopped)")
 
@@ -1550,6 +1557,9 @@ func initConfig() {
 	}
 	if v, _ := rootCmd.PersistentFlags().GetString("token"); rootCmd.PersistentFlags().Changed("token") {
 		cfg.App.AccessToken = v
+	}
+	if err := cfg.ValidatePublicMode(); err != nil {
+		exit(1, "Failed to initialize config: "+err.Error())
 	}
 }
 

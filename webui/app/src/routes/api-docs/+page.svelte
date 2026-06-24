@@ -26,6 +26,9 @@
     path: string;
     method: string;
     csrf_required: boolean;
+    public: boolean;
+    requires_auth: boolean;
+    mutates: boolean;
     description: string;
     args: EndpointArg[] | null;
     json_schema: JSONSchemaField[] | null;
@@ -140,6 +143,30 @@
                       class="border-hister-amber text-hister-amber border-2 px-1.5 py-0 text-[10px] leading-5 font-semibold"
                     >
                       CSRF
+                    </Badge>
+                  {/if}
+                  {#if ep.public}
+                    <Badge
+                      variant="outline"
+                      class="border-hister-teal text-hister-teal border-2 px-1.5 py-0 text-[10px] leading-5 font-semibold"
+                    >
+                      Public
+                    </Badge>
+                  {/if}
+                  {#if ep.requires_auth}
+                    <Badge
+                      variant="outline"
+                      class="border-hister-rose text-hister-rose border-2 px-1.5 py-0 text-[10px] leading-5 font-semibold"
+                    >
+                      Auth
+                    </Badge>
+                  {/if}
+                  {#if ep.mutates}
+                    <Badge
+                      variant="outline"
+                      class="border-hister-coral text-hister-coral border-2 px-1.5 py-0 text-[10px] leading-5 font-semibold"
+                    >
+                      Write
                     </Badge>
                   {/if}
                 </div>

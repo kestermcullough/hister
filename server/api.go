@@ -45,6 +45,7 @@ type Endpoint struct {
 	CSRFRequired bool
 	NoAuth       bool
 	AdminOnly    bool
+	Public       bool
 	Handler      endpointHandler `json:"-"`
 	Description  string
 	Args         []*EndpointArg
@@ -68,6 +69,7 @@ func init() {
 			Method:       GET,
 			CSRFRequired: true,
 			NoAuth:       true,
+			Public:       true,
 			Handler:      serveConfig,
 			Description:  "Return server configuration (base URL, hotkeys, auth mode, CSRF token, etc.)",
 		},
@@ -75,6 +77,7 @@ func init() {
 			Name:        "Search",
 			Path:        "/search",
 			Method:      GET,
+			Public:      true,
 			Handler:     serveSearch,
 			Description: "Search endpoint. With a query parameter it returns JSON results directly. Without one it upgrades to a WebSocket connection that accepts repeated JSON Query messages and streams back results.",
 			Args: []*EndpointArg{
@@ -218,6 +221,7 @@ func init() {
 			Name:        "Suggest",
 			Path:        "/suggest",
 			Method:      GET,
+			Public:      true,
 			Handler:     serveSuggest,
 			Description: "OpenSearch suggestions endpoint; returns query completions",
 			Args: []*EndpointArg{
@@ -434,6 +438,7 @@ func init() {
 			Path:         "/api/versions",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveVersions,
 			Description:  "Return all stored version diffs for a document URL. Versions are recorded when the URL matches a versioning rule and the document is re-indexed.",
 			Args: []*EndpointArg{
@@ -450,6 +455,7 @@ func init() {
 			Path:         "/api/document",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveGet,
 			Description:  "Retrieve a stored document by its URL",
 			Args: []*EndpointArg{
@@ -466,6 +472,7 @@ func init() {
 			Path:         "/api/facets",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveGetFacets,
 			Description:  "Return facet counts (domains, languages, date histogram) for a query without fetching documents",
 			Args: []*EndpointArg{
@@ -664,6 +671,7 @@ func init() {
 			Path:         "/api/preview",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      servePreview,
 			Description:  "Render a readable preview of a stored document",
 			Args: []*EndpointArg{
@@ -687,6 +695,7 @@ func init() {
 			Method:       GET,
 			CSRFRequired: false,
 			NoAuth:       true,
+			Public:       true,
 			Handler:      serveExtractors,
 			Description:  "List all registered extractors, or just those matching a specific document URL",
 			Args: []*EndpointArg{
@@ -703,6 +712,7 @@ func init() {
 			Path:         "/api/stats",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveStats,
 			Description:  "Return index statistics (document count, rule count, recent searches)",
 		},
@@ -711,6 +721,7 @@ func init() {
 			Path:         "/api/file",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveFile,
 			Description:  "Serve the raw content of a locally indexed file",
 			Args: []*EndpointArg{
@@ -813,6 +824,7 @@ func init() {
 			Path:         "/api",
 			Method:       GET,
 			CSRFRequired: false,
+			Public:       true,
 			Handler:      serveAPI,
 			Description:  "Return this API documentation as JSON",
 		},
@@ -867,6 +879,7 @@ func init() {
 			Name:        "MCP",
 			Path:        "/mcp",
 			Method:      POST,
+			Public:      true,
 			Handler:     serveMCP,
 			Description: "Model Context Protocol endpoint (JSON-RPC 2.0 / Streamable HTTP). Exposes the search tool to AI assistants.",
 			JSONSchema: []*JSONSchemaField{

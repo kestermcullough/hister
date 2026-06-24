@@ -92,15 +92,16 @@ var ws = websocket.Upgrader{
 }
 
 type webContext struct {
-	Request   *http.Request
-	Response  http.ResponseWriter
-	Config    *config.Config
-	nonce     string
-	csrf      string
-	UserID    uint
-	Username  string
-	IsAdmin   bool
-	userRules *config.Rules
+	Request       *http.Request
+	Response      http.ResponseWriter
+	Config        *config.Config
+	nonce         string
+	csrf          string
+	UserID        uint
+	Username      string
+	IsAdmin       bool
+	Authenticated bool
+	userRules     *config.Rules
 }
 
 func (c *webContext) effectiveRules() *config.Rules {
@@ -205,9 +206,10 @@ func registerEndpoints(cfg *config.Config) http.Handler {
 		if e.CSRFRequired {
 			h = withCSRF(h)
 		}
-		if tokenAuth && !userHandling && !e.NoAuth {
+		requiresAuth := endpointRequiresAuth(cfg, e)
+		if tokenAuth && !userHandling && requiresAuth {
 			h = withTokenAuth(h)
-		} else if userHandling && !e.NoAuth {
+		} else if userHandling && requiresAuth {
 			if e.AdminOnly {
 				h = withAdminAuth(h)
 			} else {
@@ -228,6 +230,16 @@ func registerEndpoints(cfg *config.Config) http.Handler {
 		return withOptionalBasePathPrefix(basePrefix, mux)
 	}
 	return mux
+}
+
+func endpointRequiresAuth(cfg *config.Config, e *Endpoint) bool {
+	if e.NoAuth {
+		return false
+	}
+	if cfg.App.Public && e.Public {
+		return false
+	}
+	return true
 }
 
 func withOptionalBasePathPrefix(prefix string, next http.Handler) http.Handler {
@@ -264,8 +276,35 @@ func createHandler(cfg *config.Config, h func(*webContext)) func(w http.Response
 		}
 		if cfg.App.UserHandling {
 			populateUserContext(c)
+		} else if cfg.App.AccessToken != "" {
+			populateTokenContext(c)
+		} else {
+			c.Authenticated = true
 		}
 		h(c)
+	}
+}
+
+func requestAccessToken(c *webContext) string {
+	tok := c.Request.Header.Get("X-Access-Token")
+	if tok == "" {
+		if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			tok = strings.TrimPrefix(auth, "Bearer ")
+		}
+	}
+	return tok
+}
+
+func populateTokenContext(c *webContext) {
+	session, err := sessionStore.Get(c.Request, storeName)
+	if err == nil && session != nil {
+		if t, ok := session.Values["access_token"].(string); ok && t == c.Config.App.AccessToken {
+			c.Authenticated = true
+			return
+		}
+	}
+	if tok := requestAccessToken(c); tok != "" && tok == c.Config.App.AccessToken {
+		c.Authenticated = true
 	}
 }
 
@@ -277,15 +316,11 @@ func withTokenAuth(handler endpointHandler) endpointHandler {
 			return
 		}
 		if t, ok := session.Values["access_token"].(string); ok && t == c.Config.App.AccessToken {
+			c.Authenticated = true
 			handler(c)
 			return
 		}
-		tok := c.Request.Header.Get("X-Access-Token")
-		if tok == "" {
-			if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-				tok = strings.TrimPrefix(auth, "Bearer ")
-			}
-		}
+		tok := requestAccessToken(c)
 		if tok != c.Config.App.AccessToken {
 			serve403(c)
 			return
@@ -296,6 +331,7 @@ func withTokenAuth(handler endpointHandler) endpointHandler {
 			serve500(c)
 			return
 		}
+		c.Authenticated = true
 		handler(c)
 	}
 }
@@ -307,22 +343,19 @@ func populateUserContext(c *webContext) {
 	}
 	if uid, ok := session.Values["user_id"].(uint); ok && uid > 0 {
 		c.UserID = uid
+		c.Authenticated = true
 	}
 	if name, ok := session.Values["username"].(string); ok {
 		c.Username = name
 	}
 	if c.UserID == 0 {
-		tok := c.Request.Header.Get("X-Access-Token")
-		if tok == "" {
-			if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-				tok = strings.TrimPrefix(auth, "Bearer ")
-			}
-		}
+		tok := requestAccessToken(c)
 		if tok != "" {
 			if u, err := model.GetUserByToken(tok); err == nil {
 				c.UserID = u.ID
 				c.Username = u.Username
 				c.IsAdmin = u.IsAdmin
+				c.Authenticated = true
 				if rules, err := u.ParseRules(); err == nil {
 					c.userRules = rules
 				}
@@ -344,6 +377,7 @@ func withUserAuth(handler endpointHandler) endpointHandler {
 			serve403(c)
 			return
 		}
+		c.Authenticated = true
 		handler(c)
 	}
 }
@@ -359,8 +393,23 @@ func withAdminAuth(handler endpointHandler) endpointHandler {
 			serve403(c)
 			return
 		}
+		c.Authenticated = true
 		handler(c)
 	}
+}
+
+func historyEnabled(cfg *config.Config) bool {
+	return !cfg.App.Public
+}
+
+func canWrite(c *webContext) bool {
+	if c.Config.App.UserHandling {
+		return c.UserID > 0
+	}
+	if c.Config.App.AccessToken != "" {
+		return c.Authenticated
+	}
+	return !c.Config.App.Public
 }
 
 func withCSRF(handler endpointHandler) endpointHandler {
@@ -570,6 +619,7 @@ func serveLogout(c *webContext) {
 	}
 	delete(session.Values, "user_id")
 	delete(session.Values, "username")
+	delete(session.Values, "access_token")
 	if err := session.Save(c.Request, c.Response); err != nil {
 		serve500(c)
 		return
@@ -613,6 +663,9 @@ func serveConfig(c *webContext) {
 		Hotkeys             map[string]string `json:"hotkeys"`
 		AuthMode            string            `json:"authMode"`
 		Authenticated       bool              `json:"authenticated"`
+		Public              bool              `json:"public"`
+		CanWrite            bool              `json:"canWrite"`
+		HistoryEnabled      bool              `json:"historyEnabled"`
 		Username            string            `json:"username,omitempty"`
 		UserID              uint              `json:"userId,omitempty"`
 		SemanticEnabled     bool              `json:"semanticEnabled"`
@@ -629,18 +682,7 @@ func serveConfig(c *webContext) {
 		authenticated = c.UserID > 0
 	} else if c.Config.App.AccessToken != "" {
 		authMode = "token"
-		// Check whether this request carries a valid token via session or header.
-		if session, err := sessionStore.Get(c.Request, storeName); err == nil && session != nil {
-			if t, ok := session.Values["access_token"].(string); ok && t == c.Config.App.AccessToken {
-				authenticated = true
-			} else if c.Request.Header.Get("X-Access-Token") == c.Config.App.AccessToken {
-				authenticated = true
-			} else {
-				authenticated = false
-			}
-		} else {
-			authenticated = c.Request.Header.Get("X-Access-Token") == c.Config.App.AccessToken
-		}
+		authenticated = c.Authenticated
 	}
 	hotkeys := c.Config.Hotkeys.Web
 	if hotkeys == nil {
@@ -659,6 +701,9 @@ func serveConfig(c *webContext) {
 		Hotkeys:             hotkeys,
 		AuthMode:            authMode,
 		Authenticated:       authenticated,
+		Public:              c.Config.App.Public,
+		CanWrite:            canWrite(c),
+		HistoryEnabled:      historyEnabled(c.Config),
 		Username:            c.Username,
 		UserID:              c.UserID,
 		SemanticEnabled:     indexer.SemanticSearchEnabled(),
@@ -813,7 +858,9 @@ func serveSearch(c *webContext) {
 func doSearch(query *indexer.Query, cfg *config.Config, rules *config.Rules, userID uint) (*indexer.Results, error) {
 	start := time.Now()
 	oq := query.Text
-	query.Text = rules.ResolveAliases(query.Text)
+	if rules != nil {
+		query.Text = rules.ResolveAliases(query.Text)
+	}
 	query.UserID = userID
 	if rules != nil && rules.Priority != nil {
 		query.PriorityPatterns = rules.Priority.ReStrs
@@ -825,27 +872,29 @@ func doSearch(query *indexer.Query, cfg *config.Config, rules *config.Rules, use
 	if res == nil {
 		res = &indexer.Results{}
 	}
-	hr, err := model.GetURLsByQuery(userID, oq)
-	if err == nil && len(hr) > 0 {
-		res.History = hr
-		priorityByURL := make(map[string]*model.URLCount, len(hr))
-		for _, h := range hr {
-			priorityByURL[h.URL] = h
-		}
-		filtered := res.Documents[:0]
-		for _, d := range res.Documents {
-			if h, ok := priorityByURL[d.URL]; ok {
-				if h.Text == "" {
-					h.Text = d.Text
-				}
-				continue
+	if historyEnabled(cfg) {
+		hr, err := model.GetURLsByQuery(userID, oq)
+		if err == nil && len(hr) > 0 {
+			res.History = hr
+			priorityByURL := make(map[string]*model.URLCount, len(hr))
+			for _, h := range hr {
+				priorityByURL[h.URL] = h
 			}
-			filtered = append(filtered, d)
+			filtered := res.Documents[:0]
+			for _, d := range res.Documents {
+				if h, ok := priorityByURL[d.URL]; ok {
+					if h.Text == "" {
+						h.Text = d.Text
+					}
+					continue
+				}
+				filtered = append(filtered, d)
+			}
+			res.Documents = filtered
 		}
-		res.Documents = filtered
-	}
-	if oq != "" {
-		res.QuerySuggestion = model.GetQuerySuggestion(userID, oq)
+		if oq != "" {
+			res.QuerySuggestion = model.GetQuerySuggestion(userID, oq)
+		}
 	}
 	duration := float32(time.Since(start).Milliseconds()) / 1000.
 	res.SearchDuration = fmt.Sprintf("%.3f seconds", duration)
@@ -1092,6 +1141,10 @@ func serveUpdateLabel(c *webContext) {
 }
 
 func serveHistory(c *webContext) {
+	if !historyEnabled(c.Config) {
+		c.Response.WriteHeader(http.StatusNotFound)
+		return
+	}
 	rssFormat := c.Request.URL.Query().Get("format") == "rss"
 	if c.Request.URL.Query().Get("opened") == "true" {
 		var lastID uint
@@ -1220,6 +1273,10 @@ func serveRSS(c *webContext, title, link string, items []rssItem) {
 }
 
 func serveSaveHistory(c *webContext) {
+	if !historyEnabled(c.Config) {
+		c.Response.WriteHeader(http.StatusNoContent)
+		return
+	}
 	h := &historyItem{}
 	err := json.NewDecoder(c.Request.Body).Decode(h)
 	if err != nil {
@@ -1510,6 +1567,9 @@ func serveAPI(c *webContext) {
 		Path         string             `json:"path"`
 		Method       string             `json:"method"`
 		CSRFRequired bool               `json:"csrf_required"`
+		Public       bool               `json:"public"`
+		RequiresAuth bool               `json:"requires_auth"`
+		Mutates      bool               `json:"mutates"`
 		Description  string             `json:"description"`
 		Args         []*EndpointArg     `json:"args,omitempty"`
 		JSONSchema   []*JSONSchemaField `json:"json_schema,omitempty"`
@@ -1521,6 +1581,9 @@ func serveAPI(c *webContext) {
 			Path:         e.Path,
 			Method:       e.Method,
 			CSRFRequired: e.CSRFRequired,
+			Public:       e.Public,
+			RequiresAuth: endpointRequiresAuth(c.Config, e),
+			Mutates:      endpointMutates(e),
 			Description:  e.Description,
 			Args:         e.Args,
 			JSONSchema:   e.JSONSchema,
@@ -1529,8 +1592,18 @@ func serveAPI(c *webContext) {
 	c.JSON(result)
 }
 
+func endpointMutates(e *Endpoint) bool {
+	if e.Method != http.MethodGet && e.Method != http.MethodHead {
+		return true
+	}
+	return e.Path == "/api/add"
+}
+
 func serveStats(c *webContext) {
-	hs, _ := model.GetLatestHistoryItems(c.UserID, 5, 0)
+	var hs []*model.HistoryItem
+	if historyEnabled(c.Config) {
+		hs, _ = model.GetLatestHistoryItems(c.UserID, 5, 0)
+	}
 	var docCount uint64
 	if c.Config.App.UserHandling {
 		docCount = indexer.DocumentCountByUser(c.UserID)
@@ -1538,12 +1611,18 @@ func serveStats(c *webContext) {
 		docCount = indexer.DocumentCount()
 	}
 	rules := c.effectiveRules()
-	c.JSON(map[string]any{
+	resp := map[string]any{
 		"doc_count":       docCount,
 		"rule_count":      rules.Count(),
 		"alias_count":     len(rules.Aliases),
 		"recent_searches": hs,
-	})
+	}
+	if c.Config.App.Public && !c.Authenticated {
+		resp["rule_count"] = 0
+		resp["alias_count"] = 0
+		delete(resp, "recent_searches")
+	}
+	c.JSON(resp)
 }
 
 func serveExtractors(c *webContext) {

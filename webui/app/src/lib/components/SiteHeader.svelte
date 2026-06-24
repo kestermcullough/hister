@@ -17,6 +17,16 @@
     'text-text-brand-muted hover:text-hister-indigo hover:bg-muted-surface size-8 shrink-0 transition-all md:size-9';
   const navLink =
     'primary-link font-space relative p-3 text-[11px] font-semibold tracking-[1px] uppercase no-underline transition-colors hover:no-underline md:p-6 md:text-[13px] md:tracking-[1.5px]';
+
+  const showWriteNav = $derived(!config?.public || !!config?.canWrite);
+  const showLogin = $derived(
+    !!config &&
+      !config.authenticated &&
+      (config.authMode === 'user' || config.authMode === 'token'),
+  );
+  const showLogout = $derived(
+    !!config && config.authenticated && (config.authMode === 'user' || config.authMode === 'token'),
+  );
 </script>
 
 <header
@@ -38,22 +48,24 @@
   </h1>
 
   <nav class="flex items-center justify-self-center" aria-label="Primary">
-    {#each navItems as item (item.href)}
-      {@const active = $page.url.pathname === new URL(item.href, $page.url).pathname}
-      <a
-        class="{navLink} {active
-          ? 'is-active text-text-brand font-bold'
-          : 'text-text-brand-muted hover:bg-muted-surface hover:text-text-brand'}"
-        style="--nav-color: {item.color};"
-        aria-current={active ? 'page' : undefined}
-        href={item.href}>{item.label}</a
-      >
-    {/each}
+    {#if showWriteNav}
+      {#each navItems as item (item.href)}
+        {@const active = $page.url.pathname === new URL(item.href, $page.url).pathname}
+        <a
+          class="{navLink} {active
+            ? 'is-active text-text-brand font-bold'
+            : 'text-text-brand-muted hover:bg-muted-surface hover:text-text-brand'}"
+          style="--nav-color: {item.color};"
+          aria-current={active ? 'page' : undefined}
+          href={item.href}>{item.label}</a
+        >
+      {/each}
+    {/if}
   </nav>
 
   <div class="flex items-center justify-self-end">
     {#if config?.authMode === 'user'}
-      {#if config?.username}
+      {#if config?.authenticated && config?.username}
         <Button
           variant="ghost"
           size="icon"
@@ -63,16 +75,7 @@
         >
           <UserRound class="size-5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class={iconBtn}
-          title="Logout {config.username}"
-          onclick={onLogout}
-        >
-          <LogOut class="size-5" />
-        </Button>
-      {:else}
+      {:else if showLogin}
         <Button
           variant="ghost"
           size="icon"
@@ -83,6 +86,27 @@
           <LogIn class="size-5" />
         </Button>
       {/if}
+    {:else if config?.authMode === 'token' && showLogin}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={iconBtn}
+        title="Login"
+        onclick={() => (window.location.href = base + '/auth')}
+      >
+        <LogIn class="size-5" />
+      </Button>
+    {/if}
+    {#if showLogout}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={iconBtn}
+        title={config?.username ? `Logout ${config.username}` : 'Logout'}
+        onclick={onLogout}
+      >
+        <LogOut class="size-5" />
+      </Button>
     {/if}
   </div>
 </header>

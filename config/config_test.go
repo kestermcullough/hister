@@ -278,6 +278,62 @@ func TestEnvTypedStringFieldNotCoerced(t *testing.T) {
 	}
 }
 
+func TestPublicModeConfig(t *testing.T) {
+	cfg := CreateDefaultConfig()
+	if cfg.App.Public {
+		t.Fatal("Public default = true, want false")
+	}
+
+	cfg, err := parseConfig([]byte("app:\n  public: true\n  access_token: secret\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.App.Public {
+		t.Fatal("Public = false, want true")
+	}
+	if err := cfg.ValidatePublicMode(); err != nil {
+		t.Fatalf("ValidatePublicMode() error = %v, want nil", err)
+	}
+}
+
+func TestPublicModeEnvironmentOverride(t *testing.T) {
+	const key = "HISTER__APP__PUBLIC"
+	old, had := os.LookupEnv(key)
+	t.Cleanup(func() { restoreEnv(key, old, had) })
+
+	if err := os.Setenv(key, "true"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := parseConfig([]byte("app:\n  access_token: secret\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.App.Public {
+		t.Fatal("Public = false, want true")
+	}
+}
+
+func TestPublicModeRequiresAuth(t *testing.T) {
+	cfg := CreateDefaultConfig()
+	cfg.App.Public = true
+	cfg.App.AccessToken = ""
+	cfg.App.UserHandling = false
+	if err := cfg.ValidatePublicMode(); err == nil {
+		t.Fatal("ValidatePublicMode() error = nil, want error")
+	}
+
+	cfg.App.AccessToken = "secret"
+	if err := cfg.ValidatePublicMode(); err != nil {
+		t.Fatalf("ValidatePublicMode() with access token error = %v, want nil", err)
+	}
+
+	cfg.App.AccessToken = ""
+	cfg.App.UserHandling = true
+	if err := cfg.ValidatePublicMode(); err != nil {
+		t.Fatalf("ValidatePublicMode() with user handling error = %v, want nil", err)
+	}
+}
+
 func TestWebSocketURLHonorsBasePath(t *testing.T) {
 	tests := []struct {
 		name string

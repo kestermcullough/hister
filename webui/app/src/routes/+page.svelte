@@ -81,6 +81,10 @@
     semanticEnabled: boolean;
     similarityThreshold: number;
     semanticWeight: number;
+    authenticated: boolean;
+    public: boolean;
+    canWrite: boolean;
+    historyEnabled: boolean;
   }
 
   interface DisplayResult {
@@ -106,6 +110,10 @@
     semanticEnabled: false,
     similarityThreshold: 0.5,
     semanticWeight: 0.4,
+    authenticated: true,
+    public: false,
+    canWrite: true,
+    historyEnabled: true,
   });
 
   let wsManager: WebSocketManager | undefined;
@@ -280,6 +288,13 @@
     ],
   ];
 
+  function visibleTips(): TipPart[][] {
+    if (config.canWrite) return tips;
+    return tips.filter(
+      (tip) => !tip.some((part) => part.type === 'link' && part.href.endsWith('/rules')),
+    );
+  }
+
   let currentTip = $state(tips[Math.floor(Math.random() * tips.length)]);
 
   const hotkeyByAction = $derived(
@@ -314,7 +329,8 @@
   let tipWasSearching = false;
   $effect(() => {
     if (tipWasSearching && !isSearching) {
-      currentTip = tips[Math.floor(Math.random() * tips.length)];
+      const choices = visibleTips();
+      currentTip = choices[Math.floor(Math.random() * choices.length)];
     }
     tipWasSearching = isSearching;
   });
@@ -705,6 +721,7 @@
   }
 
   function sendHistoryBeacon(url: string, title: string, queryStr: string) {
+    if (!config.historyEnabled) return;
     const payload = JSON.stringify({
       url,
       title: stripHtml(title),
@@ -721,6 +738,10 @@
     remove: boolean,
     callback?: () => void,
   ) {
+    if (!config.historyEnabled) {
+      callback?.();
+      return;
+    }
     try {
       const res = await apiFetch('/history', {
         method: 'POST',
@@ -746,6 +767,7 @@
   }
 
   async function deleteResult(url: string) {
+    if (!config.canWrite) return;
     const res = await apiFetch('/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -768,6 +790,7 @@
 
   function deleteSelectedResult(e?: KeyboardEvent) {
     if (e) e.preventDefault();
+    if (!config.canWrite) return;
     const links = document.querySelectorAll<HTMLAnchorElement>('[data-result] [data-result-link]');
     const link = links[highlightIdx];
     if (!link) return;
@@ -797,6 +820,7 @@
   }
 
   async function deleteAllResults() {
+    if (!config.canWrite) return;
     const q = query + (getUserId() !== undefined ? ' user_id:' + getUserId() : '');
     const res = await apiFetch('/delete', {
       method: 'POST',
@@ -1109,9 +1133,10 @@
 
       if (statsRes.ok) {
         const stats = await statsRes.json();
-        rulesCount = stats.rule_count;
-        aliasesCount = stats.alias_count;
-        historyCount = stats.doc_count;
+        rulesCount = stats.rule_count ?? 0;
+        aliasesCount = stats.alias_count ?? 0;
+        historyCount = stats.doc_count ?? 0;
+        recentSearches = [];
         if (stats.recent_searches) {
           const deletedSearches: string[] = JSON.parse(
             localStorage.getItem('deletedSearches') || '[]',
@@ -1316,6 +1341,10 @@
         semanticEnabled: (appConfig as any).semanticEnabled ?? false,
         similarityThreshold: (appConfig as any).similarityThreshold ?? 0.1,
         semanticWeight: (appConfig as any).semanticWeight ?? 0.4,
+        authenticated: appConfig.authenticated,
+        public: appConfig.public,
+        canWrite: appConfig.canWrite,
+        historyEnabled: appConfig.historyEnabled,
       };
       disablePreviews = (appConfig as any).disablePreviews ?? false;
       if (config.semanticEnabled) {
@@ -1324,6 +1353,13 @@
           similarityThreshold = config.similarityThreshold;
         if (localStorage.getItem('hister-semantic-weight') === null)
           semanticWeight = config.semanticWeight;
+      }
+      if (
+        !config.canWrite &&
+        currentTip.some((part) => part.type === 'link' && part.href.endsWith('/rules'))
+      ) {
+        const choices = visibleTips();
+        currentTip = choices[Math.floor(Math.random() * choices.length)];
       }
       inputEl?.focus();
       connect();
@@ -1369,7 +1405,7 @@
       </Dialog.Close>
     </Dialog.Header>
     <Card.Content class="space-y-0 p-4">
-      {#each Object.entries(config.hotkeys) as [key, action]}
+      {#each Object.entries(config.hotkeys).filter(([, action]) => config.canWrite || action !== 'delete_result') as [key, action]}
         <div
           class="border-border-brand-muted flex items-center justify-between border-b-[1px] py-2.5"
         >
@@ -1908,26 +1944,28 @@
                             </Button>
                           </div>
                         </div>
-                        <Separator class="bg-border-brand-muted" />
-                        <div class="space-y-2">
-                          <p
-                            class="font-inter text-hister-rose flex items-center gap-1.5 text-xs font-semibold"
-                          >
-                            <Trash2 class="size-3" />
-                            Danger Zone
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            class="border-hister-rose text-hister-rose hover:bg-hister-rose/10 h-7 w-full border-[2px] text-xs"
-                            onclick={() => {
-                              showDeleteAllConfirm = true;
-                            }}
-                          >
-                            <Trash2 class="size-3" />
-                            Delete all matching results
-                          </Button>
-                        </div>
+                        {#if config.canWrite}
+                          <Separator class="bg-border-brand-muted" />
+                          <div class="space-y-2">
+                            <p
+                              class="font-inter text-hister-rose flex items-center gap-1.5 text-xs font-semibold"
+                            >
+                              <Trash2 class="size-3" />
+                              Danger Zone
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              class="border-hister-rose text-hister-rose hover:bg-hister-rose/10 h-7 w-full border-[2px] text-xs"
+                              onclick={() => {
+                                showDeleteAllConfirm = true;
+                              }}
+                            >
+                              <Trash2 class="size-3" />
+                              Delete all matching results
+                            </Button>
+                          </div>
+                        {/if}
                       </div>
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
@@ -2079,7 +2117,10 @@
                           resultState={state}
                           {query}
                           pinned={r.isPinned}
-                          onDelete={r.isPinned ? undefined : () => deleteResult(r.url)}
+                          canWrite={config.canWrite}
+                          onDelete={r.isPinned || !config.canWrite
+                            ? undefined
+                            : () => deleteResult(r.url)}
                           {removeResult}
                           {removeResultsByDomain}
                         />
@@ -2377,16 +2418,18 @@
         <span class="font-outfit text-xl font-extrabold">{displayHistoryCount}</span>
         <span class="font-inter text-text-brand-secondary text-sm">pages</span>
       </div>
-      <div class="home-stat-pill text-hister-teal">
-        <Shield class="size-3.5 md:size-4" />
-        <span class="font-outfit text-xl font-extrabold">{displayRulesCount}</span>
-        <span class="font-inter text-text-brand-secondary text-sm">rules</span>
-      </div>
-      <div class="home-stat-pill text-hister-coral">
-        <Link2 class="size-3.5 md:size-4" />
-        <span class="font-outfit text-xl font-extrabold">{displayAliasesCount}</span>
-        <span class="font-inter text-text-brand-secondary text-sm">aliases</span>
-      </div>
+      {#if !config.public || config.canWrite}
+        <div class="home-stat-pill text-hister-teal">
+          <Shield class="size-3.5 md:size-4" />
+          <span class="font-outfit text-xl font-extrabold">{displayRulesCount}</span>
+          <span class="font-inter text-text-brand-secondary text-sm">rules</span>
+        </div>
+        <div class="home-stat-pill text-hister-coral">
+          <Link2 class="size-3.5 md:size-4" />
+          <span class="font-outfit text-xl font-extrabold">{displayAliasesCount}</span>
+          <span class="font-inter text-text-brand-secondary text-sm">aliases</span>
+        </div>
+      {/if}
     </div>
 
     {#if contextMenuSearch}

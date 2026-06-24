@@ -1,6 +1,15 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { fetchConfig } from '$lib/api';
   import { Kbd } from '@hister/components/ui/kbd';
   import { PageHeader } from '@hister/components';
+
+  let canWrite = $state(true);
+
+  onMount(async () => {
+    const cfg = await fetchConfig();
+    canWrite = cfg.canWrite;
+  });
 </script>
 
 <svelte:head>
@@ -41,11 +50,13 @@
     </p>
 
     <h2>Search Aliases</h2>
-    <p>
-      Queries can become long and complex quickly. Aliases can be defined in the <a href="/rules"
-        >rules</a
-      > page to shorten common query parts.
-    </p>
+    {#if canWrite}
+      <p>
+        Queries can become long and complex quickly. Aliases can be defined in the <a href="/rules"
+          >rules</a
+        > page to shorten common query parts.
+      </p>
+    {/if}
 
     <h3>Examples</h3>
     <p>
