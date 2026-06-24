@@ -102,13 +102,11 @@ fetch_python_docs() {
 
   "$HISTER" index --recursive \
     --allowed-domain=docs.python.org \
-    --allowed-pattern="^https://docs\.python\.org/3/.*" \
-    --exclude-pattern="/archives/" \
-    --exclude-pattern="/download" \
+    --allowed-pattern="^https://docs\.python\.org/3/library/.*" \
     --label="$label" \
     --delay=1 \
     --allow-sensitive \
-    "https://docs.python.org/3/"
+    "https://docs.python.org/3/library/index.html"
   export_dataset "python-docs" "$label"
 }
 
