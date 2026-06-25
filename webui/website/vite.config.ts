@@ -20,7 +20,7 @@ function copyDatasetJsons() {
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit(), copyDatasetJsons()],
   ssr: {
-    noExternal: ['@hister/components', 'bits-ui', 'svelte-toolbelt', 'runed'],
+    noExternal: ['@hister/components', 'bits-ui', 'svelte-toolbelt', 'runed', 'svelte-sonner'],
   },
   build: {
     rolldownOptions: {
