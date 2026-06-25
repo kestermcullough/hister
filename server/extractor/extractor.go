@@ -25,7 +25,7 @@ import (
 	"github.com/asciimoo/hister/server/extractor/extractors/markdown"
 	"github.com/asciimoo/hister/server/extractor/extractors/mastodon"
 	"github.com/asciimoo/hister/server/extractor/extractors/notion"
-	"github.com/asciimoo/hister/server/extractor/extractors/stackoverflow"
+	"github.com/asciimoo/hister/server/extractor/extractors/stackexchange"
 	"github.com/asciimoo/hister/server/extractor/extractors/wikipedia"
 	"github.com/asciimoo/hister/server/extractor/extractors/ytdlp"
 	"github.com/asciimoo/hister/server/types"
@@ -137,7 +137,7 @@ var extractors = []Extractor{
 	&markdown.MarkdownExtractor{},
 	&embeddedvideo.EmbeddedVideoExtractor{},
 	&jsonld.JSONLDExtractor{},
-	&stackoverflow.StackoverflowExtractor{},
+	&stackexchange.StackExchangeExtractor{},
 	&godoc.GoDocExtractor{},
 	&github.GitHubExtractor{},
 	&lobsters.LobstersExtractor{},
