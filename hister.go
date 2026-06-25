@@ -1142,13 +1142,18 @@ documents whose "added" timestamp falls within the given date range.`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		skip, _ := cmd.Flags().GetBool("skip-existing")
+		targetUserID, _ := cmd.Flags().GetUint("user-id")
 
 		dateRange, err := parseDateRangeFlags(cmd)
 		if err != nil {
 			exit(1, err.Error())
 		}
 
-		c := newClient(client.WithTimeout(0))
+		clientOpts := []client.Option{client.WithTimeout(0)}
+		if cmd.Flags().Changed("user-id") {
+			clientOpts = append(clientOpts, client.WithTargetUserID(targetUserID))
+		}
+		c := newClient(clientOpts...)
 		imported := 0
 		skipped := 0
 		errCount := 0
@@ -1442,6 +1447,7 @@ func init() {
 	importCmd.Flags().StringArray("cookie", nil, "HTTP cookie as Set-Cookie value (repeatable, e.g. --cookie \"session=abc; Domain=example.com\")")
 	importCmd.Flags().String("start-date", "", "only import documents added on or after this date (YYYY-MM-DD)")
 	importCmd.Flags().String("end-date", "", "only import documents added on or before this date (YYYY-MM-DD)")
+	importCmd.Flags().Uint("user-id", 0, "Import documents under the given user ID (only for admins in multiuser mode)")
 
 	exportCmd.Flags().String("start-date", "", "only export documents added on or after this date (YYYY-MM-DD)")
 	exportCmd.Flags().String("end-date", "", "only export documents added on or before this date (YYYY-MM-DD)")
