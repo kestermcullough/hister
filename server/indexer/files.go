@@ -132,6 +132,10 @@ func IndexFile(path string, userID uint) error {
 		return AddMarkdown(doc, content)
 	}
 
+	if strings.EqualFold(filepath.Ext(path), ".org") {
+		return AddOrg(doc, content)
+	}
+
 	if !utf8.Valid(content) {
 		return ErrBinaryFile
 	}
