@@ -236,13 +236,25 @@ chain handles text extraction.
 
 **Matches:** any page that contains the `application/ld+json` substring.
 
-### `stackoverflow`
+### `stackexchange`
 
-Provides a rich preview for Stack Overflow question pages. The preview pane
-shows the full question body followed by each answer separated by a horizontal
-rule. Text extraction falls through to the `Readability` extractor.
+Extracts Stack Exchange network question pages, including Stack Overflow,
+Server Fault, Super User, Ask Ubuntu, MathOverflow, Stack Apps, and
+`*.stackexchange.com` communities. Indexed text includes the question body and
+all answers, with accepted answers marked.
 
-**Matches:** `https://stackoverflow.com/questions/…`
+The preview pane shows the full question body followed by each answer separated
+by a horizontal rule, with accepted answers marked.
+
+**Matches:**
+
+- [stackoverflow.com](https://stackoverflow.com)
+- [serverfault.com](https://serverfault.com)
+- [superuser.com](https://superuser.com)
+- [askubuntu.com](https://askubuntu.com)
+- [mathoverflow.net](https://mathoverflow.net)
+- [stackapps.com](https://stackapps.com)
+- [stackexchange.com](https://stackexchange.com)
 
 ### `godoc`
 
