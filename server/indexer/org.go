@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/niklasfasching/go-org/org"
+
 	"github.com/asciimoo/hister/server/document"
 	"github.com/asciimoo/hister/server/sanitizer"
-	"github.com/niklasfasching/go-org/org"
 )
 
 // AddOrg renders Org files to HTML, stores it in d.HTML, and stores the raw
