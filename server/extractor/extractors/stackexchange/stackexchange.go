@@ -3,6 +3,7 @@ package stackexchange
 
 import (
 	"fmt"
+	stdhtml "html"
 	"net/url"
 	"strings"
 	"time"
@@ -95,6 +96,45 @@ func answerBodyText(s *goquery.Selection) string {
 	return strings.TrimSpace(body.Text())
 }
 
+func parseSEDate(dt string) (time.Time, bool) {
+	if t, err := time.Parse("2006-01-02 15:04:05Z07:00", dt); err == nil {
+		return t, true
+	}
+	if t, err := time.Parse(time.RFC3339, dt); err == nil {
+		return t, true
+	}
+	return time.Time{}, false
+}
+
+func postAuthor(post *goquery.Selection) string {
+	return strings.TrimSpace(post.Find(".post-signature .user-details a").Last().Text())
+}
+
+func postScore(post *goquery.Selection) string {
+	return strings.TrimSpace(post.Find(".js-vote-count").First().Text())
+}
+
+func postMetaLine(verb, date, author, score string) string {
+	var parts []string
+	if t, ok := parseSEDate(date); ok {
+		parts = append(parts, verb+" "+t.Format("2006-01-02"))
+	} else if date != "" {
+		parts = append(parts, verb+" "+date)
+	}
+	if author != "" {
+		parts = append(parts, "by "+author)
+	}
+	if score != "" {
+		parts = append(parts, score+" votes")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return `<p style="font-size:0.9em;color:#888"><em>` +
+		stdhtml.EscapeString(strings.Join(parts, " · ")) +
+		`</em></p>`
+}
+
 func setMetadata(d *document.Document, doc *goquery.Document) {
 	if d.Metadata == nil {
 		d.Metadata = make(map[string]any)
@@ -109,9 +149,7 @@ func setMetadata(d *document.Document, doc *goquery.Document) {
 		dateCreatedSel = doc.Find("[itemprop=dateCreated]").First()
 	}
 	if dt, ok := dateCreatedSel.Attr("datetime"); ok && dt != "" {
-		if parsed, err := time.Parse("2006-01-02 15:04:05Z07:00", dt); err == nil {
-			d.Metadata["published"] = parsed.Format(time.RFC3339)
-		} else if parsed, err := time.Parse(time.RFC3339, dt); err == nil {
+		if parsed, ok := parseSEDate(dt); ok {
 			d.Metadata["published"] = parsed.Format(time.RFC3339)
 		} else {
 			d.Metadata["published"] = dt
@@ -194,7 +232,11 @@ func (e *StackExchangeExtractor) Preview(d *document.Document) (types.PreviewRes
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "<h2>Question</h2>%s", question)
+	b.WriteString("<h2>Question</h2>")
+	qDate, _ := doc.Find("[itemprop=dateCreated]").First().Attr("datetime")
+	qPost := doc.Find(".question").First()
+	b.WriteString(postMetaLine("asked", qDate, postAuthor(qPost), postScore(qPost)))
+	b.WriteString(question)
 
 	n := 0
 	doc.Find(".answer").Each(func(_ int, s *goquery.Selection) {
@@ -215,7 +257,10 @@ func (e *StackExchangeExtractor) Preview(d *document.Document) (types.PreviewRes
 		if s.HasClass("accepted-answer") {
 			heading += " (accepted)"
 		}
-		fmt.Fprintf(&b, "<hr /><h2>%s</h2>%s", heading, h)
+		aDate, _ := s.Find("[itemprop=dateCreated]").First().Attr("datetime")
+		fmt.Fprintf(&b, "<hr /><h2>%s</h2>", heading)
+		b.WriteString(postMetaLine("answered", aDate, postAuthor(s), postScore(s)))
+		b.WriteString(h)
 	})
 
 	return types.PreviewResponse{Content: sanitizer.SanitizeHTML(b.String())}, types.ExtractorStop, nil
