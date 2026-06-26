@@ -1122,7 +1122,7 @@ Use '-' as OUTPUT_FILE to write to stdout.`,
 }
 
 var importCmd = &cobra.Command{
-	Use:   "import INPUT_FILE [INPUT_FILE...]",
+	Use:   "import INPUT_FILE_OR_DIR [INPUT_FILE_OR_DIR...]",
 	Short: "Import documents from export JSON or HTML files",
 	Long: `Import documents from one or more files previously created by the export
 command.
@@ -1140,6 +1140,9 @@ is submitted to the running server for processing.
 
 Multiple files may be given; they are imported in order and the result is
 reported as a combined total.
+
+Directories may be given too; matching .json, .7z, .html, and .htm files
+directly inside the directory are imported in filename order.
 
 Use --start-date and --end-date (format: YYYY-MM-DD) to only import
 documents whose "added" timestamp falls within the given date range.`,
@@ -1159,7 +1162,12 @@ documents whose "added" timestamp falls within the given date range.`,
 		skipped := 0
 		errCount := 0
 
-		for _, inputFile := range args {
+		inputFiles, err := expandImportInputs(args)
+		if err != nil {
+			exit(1, err.Error())
+		}
+
+		for _, inputFile := range inputFiles {
 			var i, s, e int
 			if ext := strings.ToLower(filepath.Ext(inputFile)); ext == ".html" || ext == ".htm" {
 				i, s, e = importHTMLFile(c, inputFile, skip)
@@ -1180,6 +1188,42 @@ documents whose "added" timestamp falls within the given date range.`,
 		}
 		fmt.Println(msg)
 	},
+}
+
+func isSupportedImportInput(inputFile string) bool {
+	switch strings.ToLower(filepath.Ext(inputFile)) {
+	case ".json", ".7z", ".html", ".htm":
+		return true
+	default:
+		return false
+	}
+}
+
+func expandImportInputs(args []string) ([]string, error) {
+	inputFiles := make([]string, 0, len(args))
+	for _, input := range args {
+		info, err := os.Stat(input)
+		if err != nil {
+			inputFiles = append(inputFiles, input)
+			continue
+		}
+		if !info.IsDir() {
+			inputFiles = append(inputFiles, input)
+			continue
+		}
+
+		entries, err := os.ReadDir(input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read input directory %s: %w", input, err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !isSupportedImportInput(entry.Name()) {
+				continue
+			}
+			inputFiles = append(inputFiles, filepath.Join(input, entry.Name()))
+		}
+	}
+	return inputFiles, nil
 }
 
 // importJSONFile imports documents from a JSON export file (optionally a

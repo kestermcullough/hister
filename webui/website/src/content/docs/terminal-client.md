@@ -95,10 +95,11 @@ timestamp falls within the given date range. The resulting file can be re-import
 ### Importing Documents
 
 Use `hister import` to add documents from files on disk. It accepts an arbitrary
-number of files, which are imported in order and reported as a combined total:
+number of files or directories, which are imported in order and reported as a
+combined total:
 
 ```bash
-hister import export.json page.html another.html
+hister import export.json page.html ~/Downloads/saved-pages
 ```
 
 Three input formats are supported, detected by file extension:
@@ -112,9 +113,16 @@ Three input formats are supported, detected by file extension:
   tags, etc.) and the page is submitted to the running server for processing. The import
   fails for a given file if the HTML cannot be parsed or no URL can be found in it.
 
+When a directory is passed, Hister imports matching `.json`, `.7z`, `.html`, and `.htm`
+files directly inside that directory in filename order. Other files and nested
+directories are ignored.
+
 ```bash
 # Import a single saved web page
 hister import ~/Downloads/article.html
+
+# Import all supported files directly inside a directory
+hister import ~/Downloads/saved-pages
 ```
 
 Useful flags:
