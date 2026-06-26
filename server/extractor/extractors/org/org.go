@@ -38,7 +38,7 @@ func (e *OrgModeExtractor) SetConfig(c *config.Extractor) error {
 	return nil
 }
 
-// Match returns true for file:// URLs with an  .org extension.
+// Match returns true for file:// URLs with an .org extension.
 func (e *OrgModeExtractor) Match(d *document.Document) bool {
 	if !strings.HasPrefix(d.URL, "file://") {
 		return false
