@@ -412,6 +412,18 @@ func canWrite(c *webContext) bool {
 	return !c.Config.App.Public
 }
 
+func targetUserID(c *webContext) uint {
+	uid := c.UserID
+	if c.Config.App.UserHandling && c.IsAdmin {
+		if h := c.Request.Header.Get("X-Hister-Target-User-ID"); h != "" {
+			if parsed, err := strconv.ParseUint(h, 10, 64); err == nil {
+				uid = uint(parsed)
+			}
+		}
+	}
+	return uid
+}
+
 func withCSRF(handler endpointHandler) endpointHandler {
 	return func(c *webContext) {
 		// Allow requests coming from the command line
@@ -1040,14 +1052,7 @@ func serveAdd(c *webContext) {
 		d.Text = f.Get("text")
 	}
 	if !c.effectiveRules().IsSkip(d.URL) && !c.Config.IsSameHost(d.URL) {
-		d.UserID = c.UserID
-		if c.Config.App.UserHandling && c.IsAdmin {
-			if h := c.Request.Header.Get("X-Hister-Target-User-ID"); h != "" {
-				if uid, err := strconv.ParseUint(h, 10, 64); err == nil {
-					d.UserID = uint(uid)
-				}
-			}
-		}
+		d.UserID = targetUserID(c)
 		rules := c.effectiveRules()
 		var existingDoc *document.Document
 		if rules.IsVersioning(d.URL) {
@@ -1118,14 +1123,7 @@ func serveAddPDF(c *webContext) {
 		return
 	}
 
-	d.UserID = c.UserID
-	if c.Config.App.UserHandling && c.IsAdmin {
-		if h := c.Request.Header.Get("X-Hister-Target-User-ID"); h != "" {
-			if uid, err := strconv.ParseUint(h, 10, 64); err == nil {
-				d.UserID = uint(uid)
-			}
-		}
-	}
+	d.UserID = targetUserID(c)
 
 	if err := indexer.AddPDF(d, pdfData); err != nil {
 		if errors.Is(err, document.ErrSensitiveContent) {
@@ -1875,6 +1873,7 @@ func serveBatch(c *webContext) {
 	}
 
 	batch := indexer.NewMultiBatch()
+	uid := targetUserID(c)
 	results := make([]batchOpResult, len(req.Ops))
 	for i, op := range req.Ops {
 		switch op.Op {
@@ -1883,7 +1882,7 @@ func serveBatch(c *webContext) {
 				results[i] = batchOpResult{Status: http.StatusBadRequest, Error: "missing url"}
 				continue
 			}
-			d := &document.Document{URL: op.URL, Title: op.Title, Text: op.Text, HTML: op.HTML, Favicon: op.Favicon}
+			d := &document.Document{URL: op.URL, Title: op.Title, Text: op.Text, HTML: op.HTML, Favicon: op.Favicon, UserID: uid}
 			if c.effectiveRules().IsSkip(d.URL) || strings.HasPrefix(d.URL, c.Config.BaseURL("/")) {
 				results[i] = batchOpResult{Status: http.StatusNotAcceptable, Error: "url skipped by rules"}
 				continue
@@ -1904,14 +1903,20 @@ func serveBatch(c *webContext) {
 				results[i] = batchOpResult{Status: http.StatusBadRequest, Error: "missing url"}
 				continue
 			}
-			batch.Delete(op.URL)
+			id := document.GetDocID(uid, op.URL)
+			if d := indexer.GetByDocID(id); d != nil {
+				if err := model.DeleteHistoryURL(d.UserID, d.URL); err != nil {
+					log.Warn().Err(err).Str("url", d.URL).Msg("failed to delete history for batch deleted document")
+				}
+			}
+			batch.Delete(id)
 			results[i] = batchOpResult{Status: http.StatusOK}
 		case batchOpGet:
 			if op.URL == "" {
 				results[i] = batchOpResult{Status: http.StatusBadRequest, Error: "missing url"}
 				continue
 			}
-			d := indexer.GetByURLAndUser(op.URL, c.UserID)
+			d := indexer.GetByURLAndUser(op.URL, uid)
 			if d == nil {
 				results[i] = batchOpResult{Status: http.StatusNotFound, Error: "document not found"}
 			} else {
