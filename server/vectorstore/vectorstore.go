@@ -3,6 +3,8 @@
 package vectorstore
 
 import (
+	"sort"
+
 	"github.com/asciimoo/hister/config"
 )
 
@@ -19,6 +21,49 @@ type Chunk struct {
 	Index     int
 	Text      string
 	Embedding []float32
+}
+
+func mergeSearchResults(topK int, groups ...[]Result) []Result {
+	nonEmpty := make([][]Result, 0, len(groups))
+	for _, group := range groups {
+		if len(group) > 0 {
+			nonEmpty = append(nonEmpty, group)
+		}
+	}
+	if len(nonEmpty) == 0 {
+		return nil
+	}
+	if len(nonEmpty) == 1 {
+		if topK > 0 && len(nonEmpty[0]) > topK {
+			return nonEmpty[0][:topK]
+		}
+		return nonEmpty[0]
+	}
+
+	type resultKey struct {
+		docID    string
+		chunkIdx int
+	}
+	best := make(map[resultKey]Result)
+	for _, group := range nonEmpty {
+		for _, r := range group {
+			key := resultKey{docID: r.DocID, chunkIdx: r.ChunkIdx}
+			if prev, ok := best[key]; !ok || r.Similarity > prev.Similarity {
+				best[key] = r
+			}
+		}
+	}
+	results := make([]Result, 0, len(best))
+	for _, r := range best {
+		results = append(results, r)
+	}
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].Similarity > results[j].Similarity
+	})
+	if topK > 0 && len(results) > topK {
+		results = results[:topK]
+	}
+	return results
 }
 
 // VectorStore is the interface for vector similarity backends.

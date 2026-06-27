@@ -144,6 +144,18 @@ func (s *sqliteVectorStore) Delete(docID string) error {
 }
 
 func (s *sqliteVectorStore) Search(vector []float32, topK int, threshold float64, userID uint) (_ []Result, err error) {
+	userResults, err := s.searchUser(vector, topK, threshold, userID)
+	if err != nil || userID == 0 {
+		return userResults, err
+	}
+	globalResults, err := s.searchUser(vector, topK, threshold, 0)
+	if err != nil {
+		return nil, err
+	}
+	return mergeSearchResults(topK, userResults, globalResults), nil
+}
+
+func (s *sqliteVectorStore) searchUser(vector []float32, topK int, threshold float64, userID uint) (_ []Result, err error) {
 	blob := float32ToBlob(vector)
 	rows, err := s.db.Query(
 		`SELECT e.chunk_key, e.distance, COALESCE(m.doc_id, ''), COALESCE(m.chunk_idx, 0), COALESCE(m.chunk_text, '')
@@ -156,7 +168,7 @@ func (s *sqliteVectorStore) Search(vector []float32, topK int, threshold float64
 		blob, topK, userID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("vector search: %w", err)
+		return nil, fmt.Errorf("vector search for user %d: %w", userID, err)
 	}
 	defer func() {
 		if cerr := rows.Close(); err == nil {

@@ -114,6 +114,18 @@ func (p *pgVectorStore) Delete(docID string) error {
 }
 
 func (p *pgVectorStore) Search(vector []float32, topK int, threshold float64, userID uint) (_ []Result, err error) {
+	userResults, err := p.searchUser(vector, topK, threshold, userID)
+	if err != nil || userID == 0 {
+		return userResults, err
+	}
+	globalResults, err := p.searchUser(vector, topK, threshold, 0)
+	if err != nil {
+		return nil, err
+	}
+	return mergeSearchResults(topK, userResults, globalResults), nil
+}
+
+func (p *pgVectorStore) searchUser(vector []float32, topK int, threshold float64, userID uint) (_ []Result, err error) {
 	vecStr := pgVectorLiteral(vector)
 	rows, err := p.db.Query(
 		`SELECT doc_id, chunk_idx, chunk_text, 1 - (embedding <=> $1::vector) AS similarity
@@ -125,7 +137,7 @@ func (p *pgVectorStore) Search(vector []float32, topK int, threshold float64, us
 		vecStr, threshold, topK, userID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("vector search: %w", err)
+		return nil, fmt.Errorf("vector search for user %d: %w", userID, err)
 	}
 	defer func() {
 		if cerr := rows.Close(); err == nil {
