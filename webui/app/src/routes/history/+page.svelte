@@ -224,7 +224,6 @@
   });
 
   const groups = $derived.by(() => groupByDate(filteredItems));
-  const allCount = $derived(filteredItems.length);
 
   function getGroupColor(idx: number): string {
     return groupColors[idx % groupColors.length];
@@ -583,14 +582,6 @@
             >
               Show All
             </span>
-            <Badge
-              variant="secondary"
-              class="ml-auto h-4 shrink-0 border-0 px-1.5 py-0 text-xs {filterByDate
-                ? 'bg-muted-surface text-text-brand-muted'
-                : 'bg-white/20 text-primary-foreground'}"
-            >
-              {allCount}
-            </Badge>
           </Button>
 
           <Separator class="bg-border-brand-muted h-[2px]" />
@@ -650,7 +641,7 @@
             : 'text-text-brand-secondary hover:bg-muted-surface'}"
           onclick={showAll}
         >
-          All ({allCount})
+          All
         </Button>
         {#each allGroups as group, i}
           {@const color = getGroupColor(i)}
