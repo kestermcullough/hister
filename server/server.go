@@ -1189,11 +1189,12 @@ func serveHistory(c *webContext) {
 			return
 		}
 		type openedItem struct {
-			ID    uint   `json:"id"`
-			URL   string `json:"url"`
-			Title string `json:"title"`
-			Query string `json:"query"`
-			Added int64  `json:"added"`
+			ID       uint   `json:"id"`
+			URL      string `json:"url"`
+			Title    string `json:"title"`
+			Query    string `json:"query"`
+			Added    int64  `json:"added"`
+			AddCount uint   `json:"add_count"`
 		}
 		type openedResponse struct {
 			Documents []*openedItem `json:"documents"`
@@ -1202,11 +1203,12 @@ func serveHistory(c *webContext) {
 		docs := make([]*openedItem, 0, len(items))
 		for _, item := range items {
 			docs = append(docs, &openedItem{
-				ID:    item.ID,
-				URL:   item.URL,
-				Title: item.Title,
-				Query: item.Query,
-				Added: item.UpdatedAt.Unix(),
+				ID:       item.ID,
+				URL:      item.URL,
+				Title:    item.Title,
+				Query:    item.Query,
+				Added:    item.UpdatedAt.Unix(),
+				AddCount: indexer.GetAddCountByURLAndUser(item.URL, c.UserID),
 			})
 		}
 		var nextLastID uint

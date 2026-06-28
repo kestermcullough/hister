@@ -36,6 +36,7 @@ type Document struct {
 	Language   string         `json:"language"`
 	UserID     uint           `json:"user_id"`
 	Label      string         `json:"label"`
+	AddCount   uint           `json:"add_count"`
 	Metadata   map[string]any `json:"metadata"`
 	// ExtraDocuments can be populated by extractors to create new documents during the extraction
 	ExtraDocuments []*Document `json:"-"`

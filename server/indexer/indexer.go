@@ -228,9 +228,10 @@ type batchKeyChange struct {
 }
 
 type MultiBatch struct {
-	indexer    *indexer
-	batches    map[string]*bleve.Batch
-	keyChanges []batchKeyChange
+	indexer           *indexer
+	batches           map[string]*bleve.Batch
+	keyChanges        []batchKeyChange
+	incrementAddCount bool
 }
 
 var (
@@ -283,10 +284,14 @@ func Init(cfg *config.Config) error {
 		}
 	}
 	if err := registry.RegisterHighlighter("ansi", invertedAnsiHighlighter); err != nil {
-		return err
+		if !strings.Contains(err.Error(), "duplicate highlighter") {
+			return err
+		}
 	}
 	if err := registry.RegisterHighlighter("tui", tuiHighlighter); err != nil {
-		return err
+		if !strings.Contains(err.Error(), "duplicate highlighter") {
+			return err
+		}
 	}
 	return nil
 }
@@ -619,6 +624,7 @@ func (i *indexer) AddDocument(d *document.Document) error {
 		}
 	}
 	if !d.SkipIndexing {
+		d.AddCount = i.nextAddCount(d)
 		if i.embedder != nil && i.vectorStore != nil {
 			i.embedWg.Go(func() {
 				embedDocumentChunks(i.embedCtx, i, d)
@@ -645,8 +651,17 @@ func (i *indexer) save(d *document.Document) error {
 		return err
 	}
 	log.Debug().Str("URL", d.URL).Msg("item added to index")
-	if err := i.getOrCreate(d.Language).Index(d.ID(), d); err != nil {
+	targetIdx := i.getOrCreate(d.Language)
+	if err := targetIdx.Index(d.ID(), d); err != nil {
 		return err
+	}
+	for name, idx := range i.indexers {
+		if name == targetIdx.Name() {
+			continue
+		}
+		if err := idx.Delete(d.ID()); err != nil {
+			return err
+		}
 	}
 	for _, k := range oldHTMLKeys {
 		if k != d.HTMLKey {
@@ -763,7 +778,7 @@ func GetLatestDocuments(limit int, latest string, userID uint) *Results {
 		q = query.NewMatchAllQuery()
 	}
 	req := bleve.NewSearchRequest(q)
-	req.Fields = []string{"url", "title", "added"}
+	req.Fields = []string{"url", "title", "added", "add_count"}
 	req.Size = limit
 	req.SortByCustom(search.SortOrder{
 		&search.SortField{
@@ -787,6 +802,12 @@ func GetLatestDocuments(limit int, latest string, userID uint) *Results {
 			Title: h.Fields["title"].(string),
 			URL:   h.Fields["url"].(string),
 			Added: int64(h.Fields["added"].(float64)),
+		}
+		if n, ok := h.Fields["add_count"].(float64); ok {
+			d.AddCount = uint(n)
+		}
+		if d.AddCount < 1 {
+			d.AddCount = 1
 		}
 		docs[i] = d
 	}
@@ -848,13 +869,16 @@ func (i *indexer) Close() {
 }
 
 func NewMultiBatch() *MultiBatch {
-	return newMultiBatch(i)
+	b := newMultiBatch(i)
+	b.incrementAddCount = true
+	return b
 }
 
 func newMultiBatch(idx *indexer) *MultiBatch {
 	return &MultiBatch{
-		indexer: idx,
-		batches: make(map[string]*bleve.Batch),
+		indexer:           idx,
+		batches:           make(map[string]*bleve.Batch),
+		incrementAddCount: false,
 	}
 }
 
@@ -871,6 +895,11 @@ func (b *MultiBatch) Add(d *document.Document) error {
 			return err
 		}
 	}
+	if b.incrementAddCount {
+		d.AddCount = b.indexer.nextAddCount(d)
+	} else if d.AddCount < 1 {
+		d.AddCount = 1
+	}
 	if b.indexer.embedder != nil && b.indexer.vectorStore != nil {
 		embedDocumentChunks(b.indexer.embedCtx, b.indexer, d)
 	}
@@ -878,16 +907,13 @@ func (b *MultiBatch) Add(d *document.Document) error {
 	if err := b.indexer.prepareForStorage(d); err != nil {
 		return err
 	}
-	// Delete from all existing sub-indexes before writing to the language-routed
-	// one, mirroring what save() does. Without this a language change leaves a
-	// stale entry that corrupts reference counting.
-	// Skip for new documents (no old keys) — nothing to delete.
-	if len(oldHTMLKeys) > 0 || len(oldFaviconKeys) > 0 {
-		for name, idx := range b.indexer.indexers {
-			b.getOrCreateBatch(name, idx).Delete(d.ID())
-		}
-	}
 	idx := b.indexer.getOrCreate(d.Language)
+	for name, subIdx := range b.indexer.indexers {
+		if name == idx.Name() {
+			continue
+		}
+		b.getOrCreateBatch(name, subIdx).Delete(d.ID())
+	}
 	if err := b.getOrCreateBatch(idx.Name(), idx).Index(d.ID(), d); err != nil {
 		return err
 	}
@@ -1205,6 +1231,46 @@ func GetByURLAndUser(u string, uid uint) *document.Document {
 	return GetByDocID(document.GetDocID(0, u))
 }
 
+func GetAddCountByURLAndUser(u string, uid uint) uint {
+	if uid > 0 {
+		if count, found := i.getAddCountByDocID(document.GetDocID(uid, u)); found {
+			return count
+		}
+	}
+	count, _ := i.getAddCountByDocID(document.GetDocID(0, u))
+	return count
+}
+
+func (i *indexer) nextAddCount(d *document.Document) uint {
+	// TODO perhaps a lock here?
+	count, found := i.getAddCountByDocID(d.ID())
+	if !found {
+		return 1
+	}
+	return count + 1
+}
+
+func (i *indexer) getAddCountByDocID(id string) (uint, bool) {
+	q := bleve.NewDocIDQuery([]string{id})
+	req := bleve.NewSearchRequest(q)
+	req.Fields = []string{"add_count"}
+	req.Size = len(i.indexers) + 1
+	res, err := i.idx.Search(req)
+	if err != nil || len(res.Hits) < 1 {
+		return 0, false
+	}
+	var maxCount uint = 1
+	for _, h := range res.Hits {
+		if n, ok := h.Fields["add_count"].(float64); ok {
+			count := uint(n)
+			if count > maxCount {
+				maxCount = count
+			}
+		}
+	}
+	return maxCount, true
+}
+
 // GetByDocID returns the document with the given bleve document ID, or nil if
 // none exists. The ID is the uid-prefixed form produced by document.GetDocID.
 func GetByDocID(id string) *document.Document {
@@ -1321,6 +1387,12 @@ func (idx *indexer) resFromHit(h *search.DocumentMatch, includeText, includeHTML
 	}
 	if s, ok := h.Fields["label"].(string); ok {
 		d.Label = s
+	}
+	if n, ok := h.Fields["add_count"].(float64); ok {
+		d.AddCount = uint(n)
+	}
+	if d.AddCount < 1 {
+		d.AddCount = 1
 	}
 	d.Score = h.Score
 	for k, v := range h.Fields {
@@ -1448,9 +1520,12 @@ func createMapping(lang string) mapping.IndexMapping {
 	docMapping.AddFieldMappingsAt("html", noIdxMap)
 	docMapping.AddFieldMappingsAt("html_key", um)
 	docMapping.AddFieldMappingsAt("metadata", noIdxMap)
-	docMapping.AddFieldMappingsAt("added", bleve.NewNumericFieldMapping())
-	docMapping.AddFieldMappingsAt("type", bleve.NewNumericFieldMapping())
-	docMapping.AddFieldMappingsAt("user_id", bleve.NewNumericFieldMapping())
+	numMap := bleve.NewNumericFieldMapping()
+	numMap.Store = true
+	docMapping.AddFieldMappingsAt("added", numMap)
+	docMapping.AddFieldMappingsAt("add_count", numMap)
+	docMapping.AddFieldMappingsAt("type", numMap)
+	docMapping.AddFieldMappingsAt("user_id", numMap)
 
 	im.DefaultMapping = docMapping
 

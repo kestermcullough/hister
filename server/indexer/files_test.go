@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"github.com/asciimoo/hister/config"
+	"github.com/asciimoo/hister/server/document"
 	"github.com/asciimoo/hister/server/model"
+
+	"github.com/blevesearch/bleve/v2"
 )
 
 func setupTestDB(t *testing.T) *config.Config {
@@ -131,6 +134,7 @@ func TestIndexFileWithUserID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to init indexer: %v", err)
 	}
+	defer i.Close()
 
 	// Index the file with the test user's ID
 	err = IndexFile(testFile, u.ID)
@@ -143,6 +147,154 @@ func TestIndexFileWithUserID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IndexFile without user ID failed: %v", err)
 	}
+}
+
+func TestAddDocumentIncrementsAddCount(t *testing.T) {
+	dataDir := t.TempDir()
+	idxCfg := config.CreateDefaultConfig()
+	idxCfg.App.Directory = dataDir
+	err := Init(idxCfg)
+	if err != nil {
+		t.Fatalf("failed to init indexer: %v", err)
+	}
+	defer i.Close()
+
+	url := "https://example.com/count"
+	for range 2 {
+		err = Add(&document.Document{
+			URL:   url,
+			Title: "Counted",
+			Text:  "Counted document text",
+		})
+		if err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+	}
+
+	got := GetByURLAndUser(url, 0)
+	if got == nil {
+		t.Fatal("document not found")
+	}
+	if got.AddCount != 2 {
+		t.Fatalf("AddCount = %d, want 2", got.AddCount)
+	}
+
+	latest := GetLatestDocuments(10, "", 0)
+	if latest == nil {
+		t.Fatal("latest documents not found")
+	}
+	if len(latest.Documents) != 1 {
+		t.Fatalf("latest documents count = %d, want 1", len(latest.Documents))
+	}
+	if latest.Documents[0].AddCount != 2 {
+		t.Fatalf("latest AddCount = %d, want 2", latest.Documents[0].AddCount)
+	}
+}
+
+func TestAddDocumentTreatsMissingAddCountAsOne(t *testing.T) {
+	dataDir := t.TempDir()
+	idxCfg := config.CreateDefaultConfig()
+	idxCfg.App.Directory = dataDir
+	err := Init(idxCfg)
+	if err != nil {
+		t.Fatalf("failed to init indexer: %v", err)
+	}
+	defer i.Close()
+
+	url := "https://example.com/legacy-count"
+	err = i.save(&document.Document{
+		URL:   url,
+		Title: "Legacy counted",
+		Text:  "Legacy counted document text",
+	})
+	if err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	got := GetByURLAndUser(url, 0)
+	if got == nil {
+		t.Fatal("document not found")
+	}
+	if got.AddCount != 1 {
+		t.Fatalf("legacy AddCount = %d, want 1", got.AddCount)
+	}
+
+	err = Add(&document.Document{
+		URL:   url,
+		Title: "Legacy counted",
+		Text:  "Legacy counted document text",
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	got = GetByURLAndUser(url, 0)
+	if got == nil {
+		t.Fatal("document not found after add")
+	}
+	if got.AddCount != 2 {
+		t.Fatalf("AddCount after add = %d, want 2", got.AddCount)
+	}
+}
+
+func TestSaveRemovesStaleLanguageCopy(t *testing.T) {
+	dataDir := t.TempDir()
+	idxCfg := config.CreateDefaultConfig()
+	idxCfg.App.Directory = dataDir
+	err := Init(idxCfg)
+	if err != nil {
+		t.Fatalf("failed to init indexer: %v", err)
+	}
+	defer i.Close()
+
+	url := "https://example.com/language-copy"
+	err = i.save(&document.Document{
+		URL:      url,
+		Title:    "Language copy",
+		Text:     "Language copy text",
+		Language: "en",
+		AddCount: 4,
+	})
+	if err != nil {
+		t.Fatalf("first save failed: %v", err)
+	}
+	if copies := countDocIDCopies(t, document.GetDocID(0, url)); copies != 1 {
+		t.Fatalf("copies after first save = %d, want 1", copies)
+	}
+
+	err = i.save(&document.Document{
+		URL:      url,
+		Title:    "Language copy",
+		Text:     "Language copy text",
+		Language: "",
+		AddCount: 5,
+	})
+	if err != nil {
+		t.Fatalf("second save failed: %v", err)
+	}
+	if copies := countDocIDCopies(t, document.GetDocID(0, url)); copies != 1 {
+		t.Fatalf("copies after language change = %d, want 1", copies)
+	}
+
+	got := GetByURLAndUser(url, 0)
+	if got == nil {
+		t.Fatal("document not found")
+	}
+	if got.AddCount != 5 {
+		t.Fatalf("AddCount = %d, want 5", got.AddCount)
+	}
+}
+
+func countDocIDCopies(t *testing.T, id string) uint64 {
+	t.Helper()
+	q := bleve.NewDocIDQuery([]string{id})
+	req := bleve.NewSearchRequest(q)
+	req.Size = 10
+	res, err := i.idx.Search(req)
+	if err != nil {
+		t.Fatalf("search failed: %v", err)
+	}
+	return res.Total
 }
 
 func TestDirectoryUserField(t *testing.T) {

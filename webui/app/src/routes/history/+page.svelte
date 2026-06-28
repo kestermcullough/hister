@@ -757,6 +757,13 @@
                               >{formatRelativeTime(item.added)}</span
                             >
                           {/if}
+                          {#if (item.add_count ?? 0) > 1}
+                            <span
+                              class="font-inter bg-muted-surface text-text-brand-secondary w-fit px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap"
+                              title={`Added ${item.add_count?.toLocaleString()} times`}
+                              >x{item.add_count?.toLocaleString()}</span
+                            >
+                          {/if}
                           <span
                             class="history-url font-fira text-text-brand-muted block text-xs md:text-sm"
                             title={item.url}>{item.url}</span
