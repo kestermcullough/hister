@@ -328,6 +328,7 @@
   });
 
   async function loadMore() {
+    if (loading || !hasMore) return;
     if (openedOnly) {
       loadItems(String(openedLastID));
     } else {
@@ -633,43 +634,66 @@
               </Badge>
             </Button>
           {/each}
+
+          {#if hasMore}
+            <Separator class="bg-border-brand-muted h-[2px]" />
+            <Button
+              variant="ghost"
+              class="font-inter border-brutal-border flex h-auto w-full cursor-pointer items-center justify-center rounded-none border-[2px] px-3 py-2 text-sm font-semibold text-text-brand-secondary shadow-[2px_2px_0_transparent] hover:bg-muted-surface hover:shadow-[2px_2px_0_var(--brutal-shadow)]"
+              disabled={loading}
+              onclick={loadMore}
+            >
+              {loading ? 'Loading...' : 'Load more'}
+            </Button>
+          {/if}
         </div>
       </ScrollArea>
     {/if}
 
     <!-- Mobile timeline: horizontal scrollable filter chips -->
     {#if !previewFullscreen}
-      <div
-        class="border-brutal-border bg-page-bg flex shrink-0 items-center gap-2 overflow-x-auto border-b-[3px] px-3 py-2 md:hidden"
-      >
-        <span class="text-text-brand-muted flex shrink-0 items-center">
-          <ListFilter class="size-4" />
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="font-inter border-brutal-border h-8 shrink-0 rounded-none border-[2px] px-3 text-xs font-bold {!filterByDate
-            ? 'bg-hister-indigo hover:bg-hister-indigo/90 text-primary-foreground hover:text-primary-foreground'
-            : 'text-text-brand-secondary hover:bg-muted-surface'}"
-          onclick={showAll}
-        >
-          All
-        </Button>
-        {#each allGroups as group, i}
-          {@const color = getGroupColor(i)}
-          {@const isActive = filterByDate === group.key}
+      <div class="border-brutal-border bg-page-bg shrink-0 border-b-[3px] px-3 py-2 md:hidden">
+        <div class="flex items-center gap-2 overflow-x-auto">
+          <span class="text-text-brand-muted flex shrink-0 items-center">
+            <ListFilter class="size-4" />
+          </span>
           <Button
             variant="ghost"
             size="sm"
-            class="font-inter border-brutal-border h-8 shrink-0 rounded-none border-[2px] px-3 text-xs font-semibold {isActive
-              ? 'text-primary-foreground hover:text-primary-foreground'
+            class="font-inter border-brutal-border h-8 shrink-0 rounded-none border-[2px] px-3 text-xs font-bold {!filterByDate
+              ? 'bg-hister-indigo hover:bg-hister-indigo/90 text-primary-foreground hover:text-primary-foreground'
               : 'text-text-brand-secondary hover:bg-muted-surface'}"
-            style={isActive ? `background-color: ${getColorVar(color)};` : ''}
-            onclick={() => scrollToGroup(group.key)}
+            onclick={showAll}
           >
-            {group.label} ({groupCountLabel(group)})
+            All
           </Button>
-        {/each}
+          {#each allGroups as group, i}
+            {@const color = getGroupColor(i)}
+            {@const isActive = filterByDate === group.key}
+            <Button
+              variant="ghost"
+              size="sm"
+              class="font-inter border-brutal-border h-8 shrink-0 rounded-none border-[2px] px-3 text-xs font-semibold {isActive
+                ? 'text-primary-foreground hover:text-primary-foreground'
+                : 'text-text-brand-secondary hover:bg-muted-surface'}"
+              style={isActive ? `background-color: ${getColorVar(color)};` : ''}
+              onclick={() => scrollToGroup(group.key)}
+            >
+              {group.label} ({groupCountLabel(group)})
+            </Button>
+          {/each}
+        </div>
+        {#if hasMore}
+          <Button
+            variant="ghost"
+            size="sm"
+            class="font-inter border-brutal-border mt-2 h-8 w-full rounded-none border-[2px] px-3 text-xs font-semibold text-text-brand-secondary hover:bg-muted-surface"
+            disabled={loading}
+            onclick={loadMore}
+          >
+            {loading ? 'Loading...' : 'Load more'}
+          </Button>
+        {/if}
       </div>
     {/if}
 
