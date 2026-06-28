@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/asciimoo/hister/config"
+	"github.com/asciimoo/hister/server/model"
 
 	"github.com/gorilla/sessions"
 )
@@ -228,6 +229,92 @@ func TestPublicModeDisablesHistoryForAuthenticatedCallers(t *testing.T) {
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("POST /api/history status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+}
+
+func TestMCPGetHistoryOpenedMode(t *testing.T) {
+	cfg, handler := newTokenTestServer(t, false)
+	if err := model.Init(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if db, err := model.DB.DB(); err == nil {
+		t.Cleanup(func() {
+			_ = db.Close()
+		})
+	}
+	if err := model.UpdateHistory(0, "hister mcp", "https://example.com/mcp", "MCP result"); err != nil {
+		t.Fatal(err)
+	}
+	if err := model.UpdateHistory(0, "history view", "https://example.com/history", "History result"); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_history","arguments":{"mode":"opened","limit":10}}}`))
+	req.Header.Set("X-Access-Token", "secret")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /mcp get_history status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Result struct {
+			Content []mcpTextContent `json:"content"`
+		} `json:"result"`
+		Error *mcpRPCError `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error != nil {
+		t.Fatalf("MCP error = %+v", body.Error)
+	}
+	if len(body.Result.Content) != 1 {
+		t.Fatalf("content length = %d, want 1", len(body.Result.Content))
+	}
+	text := body.Result.Content[0].Text
+	for _, want := range []string{
+		"Opened history items: 2",
+		"Query: hister mcp",
+		"URL: https://example.com/mcp",
+		"Query: history view",
+		"URL: https://example.com/history",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("history response missing %q in:\n%s", want, text)
+		}
+	}
+}
+
+func TestMCPGetHistoryDefaultsToIndexedMode(t *testing.T) {
+	_, handler := newTokenTestServer(t, false)
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_history","arguments":{"limit":10}}}`))
+	req.Header.Set("X-Access-Token", "secret")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /mcp get_history status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Result struct {
+			Content []mcpTextContent `json:"content"`
+		} `json:"result"`
+		Error *mcpRPCError `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error != nil {
+		t.Fatalf("MCP error = %+v", body.Error)
+	}
+	if len(body.Result.Content) != 1 {
+		t.Fatalf("content length = %d, want 1", len(body.Result.Content))
+	}
+	if !strings.Contains(body.Result.Content[0].Text, "indexed history items") {
+		t.Fatalf("default history response did not use indexed mode:\n%s", body.Result.Content[0].Text)
 	}
 }
 

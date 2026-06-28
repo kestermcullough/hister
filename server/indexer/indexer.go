@@ -765,6 +765,9 @@ func Save(d *document.Document) error {
 }
 
 func GetLatestDocuments(limit int, latest string, userID uint) *Results {
+	if i == nil {
+		return nil
+	}
 	var q query.Query
 	if userID > 0 {
 		uid := float64(userID)
@@ -1232,6 +1235,9 @@ func GetByURLAndUser(u string, uid uint) *document.Document {
 }
 
 func GetAddCountByURLAndUser(u string, uid uint) uint {
+	if i == nil {
+		return 0
+	}
 	if uid > 0 {
 		if count, found := i.getAddCountByDocID(document.GetDocID(uid, u)); found {
 			return count

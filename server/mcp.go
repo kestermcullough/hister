@@ -6,7 +6,7 @@
 //
 // Specification: https://modelcontextprotocol.io/specification/2024-11-05
 //
-// Exposed tools: search, get_preview. The handler lives at POST /mcp and uses
+// Exposed tools: search, get_preview, get_history. The handler lives at POST /mcp and uses
 // the same authentication as the rest of the API. Bearer tokens are accepted
 // via the standard Authorization header and are resolved by the global auth
 // middleware (withTokenAuth / populateUserContext).
@@ -21,6 +21,7 @@ import (
 
 	"github.com/asciimoo/hister/server/extractor"
 	"github.com/asciimoo/hister/server/indexer"
+	"github.com/asciimoo/hister/server/model"
 
 	"github.com/rs/zerolog/log"
 )
@@ -182,6 +183,32 @@ func mcpToolList() []map[string]any {
 				"required": []string{"url"},
 			},
 		},
+		{
+			"name":        "get_history",
+			"description": "Retrieve items shown in the Hister history view. Returns recently indexed pages by default, or opened search result history when mode is opened.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"mode": map[string]any{
+						"type":        "string",
+						"enum":        []string{"opened", "indexed"},
+						"description": `History view mode to read. "indexed" returns recently indexed pages. "opened" returns search history items opened from Hister's result list. Default: indexed.`,
+					},
+					"limit": map[string]any{
+						"type":        "integer",
+						"description": "Maximum number of items to return (default: 20, max: 100).",
+					},
+					"last_id": map[string]any{
+						"type":        "integer",
+						"description": `Pagination cursor for opened mode. Use the "next_last_id" value from the previous response.`,
+					},
+					"page_key": map[string]any{
+						"type":        "string",
+						"description": `Pagination cursor for indexed mode. Use the "next_page_key" value from the previous response.`,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -200,6 +227,8 @@ func mcpCallTool(c *webContext, req mcpRequest) {
 		mcpToolSearch(c, req.ID, params.Arguments)
 	case "get_preview":
 		mcpToolGetPreview(c, req.ID, params.Arguments)
+	case "get_history":
+		mcpToolGetHistory(c, req.ID, params.Arguments)
 	default:
 		mcpWriteError(c, req.ID, mcpErrNotFound, "unknown tool: "+params.Name)
 	}
@@ -280,6 +309,22 @@ type mcpGetPreviewArgs struct {
 	Extractor string `json:"extractor"`
 }
 
+type mcpGetHistoryArgs struct {
+	Mode    string `json:"mode"`
+	Limit   int    `json:"limit"`
+	LastID  uint   `json:"last_id"`
+	PageKey string `json:"page_key"`
+}
+
+type mcpHistoryOpenedItem struct {
+	ID       uint
+	URL      string
+	Title    string
+	Query    string
+	Added    int64
+	AddCount uint
+}
+
 // mcpToolGetPreview retrieves the stored preview for a document and returns its
 // full content together with all available metadata.
 func mcpToolGetPreview(c *webContext, id json.RawMessage, rawArgs json.RawMessage) {
@@ -321,6 +366,67 @@ func mcpToolGetPreview(c *webContext, id json.RawMessage, rawArgs json.RawMessag
 	})
 }
 
+func mcpToolGetHistory(c *webContext, id json.RawMessage, rawArgs json.RawMessage) {
+	var args mcpGetHistoryArgs
+	if len(rawArgs) > 0 {
+		if err := json.Unmarshal(rawArgs, &args); err != nil {
+			mcpWriteError(c, id, mcpErrInvalidParam, "invalid get_history arguments: "+err.Error())
+			return
+		}
+	}
+	if !historyEnabled(c.Config) {
+		mcpWriteError(c, id, mcpErrNotFound, "history is disabled")
+		return
+	}
+	if args.Mode == "" {
+		args.Mode = "indexed"
+	}
+	if args.Limit <= 0 || args.Limit > 100 {
+		args.Limit = 20
+	}
+
+	switch args.Mode {
+	case "opened":
+		items, err := model.GetLatestHistoryItems(c.UserID, args.Limit, args.LastID)
+		if err != nil {
+			log.Error().Err(err).Msg("MCP get_history opened mode failed")
+			mcpWriteError(c, id, mcpErrInternal, "history lookup failed")
+			return
+		}
+		historyItems := make([]mcpHistoryOpenedItem, 0, len(items))
+		for _, item := range items {
+			historyItems = append(historyItems, mcpHistoryOpenedItem{
+				ID:       item.ID,
+				URL:      item.URL,
+				Title:    item.Title,
+				Query:    item.Query,
+				Added:    item.UpdatedAt.Unix(),
+				AddCount: indexer.GetAddCountByURLAndUser(item.URL, c.UserID),
+			})
+		}
+		var nextLastID uint
+		if len(historyItems) == args.Limit && len(historyItems) > 0 {
+			nextLastID = historyItems[len(historyItems)-1].ID
+		}
+		mcpWriteResult(c, id, map[string]any{
+			"content": []mcpTextContent{
+				{Type: "text", Text: mcpFormatOpenedHistory(historyItems, nextLastID)},
+			},
+		})
+
+	case "indexed":
+		res := indexer.GetLatestDocuments(args.Limit, args.PageKey, c.UserID)
+		mcpWriteResult(c, id, map[string]any{
+			"content": []mcpTextContent{
+				{Type: "text", Text: mcpFormatIndexedHistory(res)},
+			},
+		})
+
+	default:
+		mcpWriteError(c, id, mcpErrInvalidParam, `mode must be "opened" or "indexed"`)
+	}
+}
+
 // mcpFormatPreview renders a document preview as a human-readable text block
 // with title, URL, indexing date, all metadata fields, and extracted content.
 func mcpFormatPreview(title, url string, added int64, meta map[string]any, content string) string {
@@ -350,6 +456,54 @@ func mcpFormatPreview(title, url string, added int64, meta map[string]any, conte
 
 	if t := strings.TrimSpace(content); t != "" {
 		fmt.Fprintf(&b, "\n--- Content ---\n%s\n", t)
+	}
+	return b.String()
+}
+
+func mcpFormatOpenedHistory(items []mcpHistoryOpenedItem, nextLastID uint) string {
+	if len(items) == 0 {
+		return "No opened history items found."
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Opened history items: %d\n", len(items))
+	if nextLastID > 0 {
+		fmt.Fprintf(&b, "next_last_id: %d\n", nextLastID)
+	}
+	for n, item := range items {
+		added := time.Unix(item.Added, 0).Format("2006-01-02 15:04")
+		title := item.Title
+		if title == "" {
+			title = item.URL
+		}
+		fmt.Fprintf(&b, "\n%d. %s\n   URL: %s\n   Query: %s\n   Opened: %s\n", n+1, title, item.URL, item.Query, added)
+		if item.AddCount > 0 {
+			fmt.Fprintf(&b, "   Indexed versions: %d\n", item.AddCount)
+		}
+	}
+	return b.String()
+}
+
+func mcpFormatIndexedHistory(res *indexer.Results) string {
+	if res == nil || len(res.Documents) == 0 {
+		return "No indexed history items found."
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Indexed history items: %d\n", len(res.Documents))
+	if res.PageKey != "" {
+		fmt.Fprintf(&b, "next_page_key: %s\n", res.PageKey)
+	}
+	for n, d := range res.Documents {
+		added := time.Unix(d.Added, 0).Format("2006-01-02 15:04")
+		title := d.Title
+		if title == "" {
+			title = d.URL
+		}
+		fmt.Fprintf(&b, "\n%d. %s\n   URL: %s\n   Indexed: %s\n", n+1, title, d.URL, added)
+		if d.AddCount > 0 {
+			fmt.Fprintf(&b, "   Indexed versions: %d\n", d.AddCount)
+		}
 	}
 	return b.String()
 }

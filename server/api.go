@@ -898,7 +898,7 @@ func init() {
 			Method:      POST,
 			Public:      true,
 			Handler:     serveMCP,
-			Description: "Model Context Protocol endpoint (JSON-RPC 2.0 / Streamable HTTP). Exposes the search tool to AI assistants.",
+			Description: "Model Context Protocol endpoint (JSON-RPC 2.0 / Streamable HTTP). Exposes search, preview, and history tools to AI assistants.",
 			JSONSchema: []*JSONSchemaField{
 				{
 					Name:        "jsonrpc",
