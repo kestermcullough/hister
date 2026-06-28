@@ -33,6 +33,7 @@
       ? localStorage.getItem('historyOpenedOnly') === 'true'
       : false,
   );
+  const historyPageSize = 100;
 
   // Keyboard navigation
   let keyHandler: KeyHandler | undefined;
@@ -264,6 +265,16 @@
     return group.items.length;
   }
 
+  function groupHasMore(group: { key: string; items: HistoryItem[] }): boolean {
+    if (!hasMore || items.length === 0) return false;
+    const oldestLoadedItem = items[items.length - 1];
+    return !!oldestLoadedItem.added && getDateKey(oldestLoadedItem.added) === group.key;
+  }
+
+  function groupCountLabel(group: { key: string; items: HistoryItem[] }): string {
+    return `${groupCount(group)}${groupHasMore(group) ? '+' : ''}`;
+  }
+
   async function loadItems(latest: string = '') {
     loading = true;
     try {
@@ -287,15 +298,16 @@
       if (!res.ok) throw new Error('Failed to load history');
       const resJSON = await res.json();
       if (resJSON && resJSON.documents) {
+        const loadedCount = resJSON.documents.length;
         if (!latest) {
           items = resJSON.documents;
         } else {
           items.push(...resJSON.documents);
         }
         if (openedOnly) {
-          openedLastID = resJSON.last_id ?? 0;
+          openedLastID = loadedCount >= historyPageSize ? (resJSON.last_id ?? 0) : 0;
         } else {
-          pageKey = resJSON.page_key ?? '';
+          pageKey = loadedCount >= historyPageSize ? (resJSON.page_key ?? '') : '';
         }
       } else {
         pageKey = '';
@@ -617,7 +629,7 @@
                   ? 'bg-white/20 text-primary-foreground'
                   : 'bg-muted-surface text-text-brand-muted'}"
               >
-                {groupCount(group)}
+                {groupCountLabel(group)}
               </Badge>
             </Button>
           {/each}
@@ -655,7 +667,7 @@
             style={isActive ? `background-color: ${getColorVar(color)};` : ''}
             onclick={() => scrollToGroup(group.key)}
           >
-            {group.label} ({groupCount(group)})
+            {group.label} ({groupCountLabel(group)})
           </Button>
         {/each}
       </div>
