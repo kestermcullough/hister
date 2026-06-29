@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/asciimoo/hister/cmd/tui"
 	"github.com/asciimoo/hister/server/document"
 	"github.com/asciimoo/hister/server/indexer"
-	"github.com/asciimoo/hister/tui"
 
 	"github.com/spf13/cobra"
 )

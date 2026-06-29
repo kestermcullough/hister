@@ -15,8 +15,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
+	"github.com/asciimoo/hister/cmd/tui/theme"
 	"github.com/asciimoo/hister/config"
-	"github.com/asciimoo/hister/tui/theme"
 )
 
 // pads s with spaces on the right to reach exactly width display columns

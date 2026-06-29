@@ -7,11 +7,11 @@ package handle
 import (
 	"strings"
 
+	"github.com/asciimoo/hister/cmd/tui/model"
+	"github.com/asciimoo/hister/cmd/tui/network"
+	"github.com/asciimoo/hister/cmd/tui/render"
+	"github.com/asciimoo/hister/cmd/tui/theme"
 	"github.com/asciimoo/hister/config"
-	"github.com/asciimoo/hister/tui/model"
-	"github.com/asciimoo/hister/tui/network"
-	"github.com/asciimoo/hister/tui/render"
-	"github.com/asciimoo/hister/tui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/browser"

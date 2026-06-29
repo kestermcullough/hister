@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/asciimoo/hister/cmd/tui/model"
 	"github.com/asciimoo/hister/server/document"
 	smodel "github.com/asciimoo/hister/server/model"
-	"github.com/asciimoo/hister/tui/model"
 
 	"github.com/charmbracelet/lipgloss"
 )

@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/asciimoo/hister/cmd/tui/model"
 	"github.com/asciimoo/hister/config"
-	"github.com/asciimoo/hister/tui/model"
 
 	"github.com/charmbracelet/lipgloss"
 )
