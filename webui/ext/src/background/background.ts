@@ -4,6 +4,25 @@ const missingURLMsg = {
   error: 'Missing or invalid Hister server URL. Configure it in the addon popup.',
 };
 
+type CustomHeader = { name: string; value: string };
+type SkipRuleType = 'url' | 'domain';
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildUrlSkipPattern(url: string): string {
+  return escapeRegex(url) + '$';
+}
+
+function buildDomainSkipPattern(url: string): string {
+  try {
+    return escapeRegex(new URL(url).origin);
+  } catch (_) {
+    return escapeRegex(url);
+  }
+}
+
 // --- Badge helpers ---
 
 function setErrorBadge(tabId: number) {
@@ -98,7 +117,7 @@ let skipRulesCache: SkipRulesCache | null = null;
 
 async function getSkipPatterns(
   serverURL: string,
-  customHeaders: { name: string; value: string }[],
+  customHeaders: CustomHeader[],
 ): Promise<RegExp[]> {
   const now = Date.now();
   if (skipRulesCache && now - skipRulesCache.timestamp < SKIP_RULES_TTL) {
@@ -123,6 +142,52 @@ async function getSkipPatterns(
   } catch (_) {
     return skipRulesCache?.patterns ?? [];
   }
+}
+
+function getCustomHeaders(data): CustomHeader[] {
+  const customHeaders: CustomHeader[] = Array.isArray(data['histerCustomHeaders'])
+    ? [...data['histerCustomHeaders']]
+    : [];
+  if (data['histerToken']) {
+    customHeaders.push({ name: 'X-Access-Token', value: data['histerToken'] });
+  }
+  return customHeaders;
+}
+
+async function saveSkipRule(
+  baseURL: string,
+  customHeaders: CustomHeader[],
+  pattern: string,
+  deleteQuery?: string,
+): Promise<void> {
+  const rulesResp = await fetchAPI(baseURL + 'api/rules', { customHeaders });
+  if (!rulesResp.ok) {
+    throw new Error(`Failed to fetch rules: ${rulesResp.status}`);
+  }
+  const rulesData = await rulesResp.json();
+  const existingSkip: string[] = rulesData.skip ?? [];
+  const existingPriority: string[] = rulesData.priority ?? [];
+  const newSkip = [...existingSkip, pattern];
+  const saveResp = await fetchAPI(baseURL + 'api/rules', {
+    formData: {
+      skip: newSkip.join(' '),
+      priority: existingPriority.join(' '),
+    },
+    customHeaders,
+  });
+  if (!saveResp.ok) {
+    throw new Error(`Failed to save rule: ${saveResp.status}`);
+  }
+  if (deleteQuery) {
+    const deleteResp = await fetchAPI(baseURL + 'api/delete', {
+      body: { query: deleteQuery },
+      customHeaders,
+    });
+    if (!deleteResp.ok) {
+      throw new Error(`Failed to delete documents: ${deleteResp.status}`);
+    }
+  }
+  skipRulesCache = null;
 }
 
 // --- Tab icon state ---
@@ -304,7 +369,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 async function isUrlPreviouslyIndexed(
   url: string,
   serverURL: string,
-  customHeaders: { name: string; value: string }[],
+  customHeaders: CustomHeader[],
 ): Promise<boolean> {
   try {
     const base = serverURL.endsWith('/') ? serverURL : serverURL + '/';
@@ -332,9 +397,41 @@ async function indexCurrentTab(): Promise<void> {
   });
 }
 
+async function disableIndexingForCurrentTab(type: SkipRuleType): Promise<void> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !tab.url) return;
+
+  try {
+    const data = await chrome.storage.local.get([
+      'histerURL',
+      'histerToken',
+      'histerCustomHeaders',
+    ]);
+    let serverURL: string = data['histerURL'] || '';
+    if (!serverURL) {
+      setErrorBadge(tab.id);
+      return;
+    }
+    if (!serverURL.endsWith('/')) {
+      serverURL += '/';
+    }
+    const pattern = type === 'url' ? buildUrlSkipPattern(tab.url) : buildDomainSkipPattern(tab.url);
+    await saveSkipRule(serverURL, getCustomHeaders(data), pattern);
+    await setGreyIcon(tab.id);
+    setPreviouslyIndexedBadge(tab.id);
+    setTimeout(() => clearBadge(tab.id!), 2500);
+  } catch (_) {
+    setErrorBadge(tab.id);
+  }
+}
+
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'index-current-page') {
     void indexCurrentTab();
+  } else if (command === 'disable-indexing-current-page') {
+    void disableIndexingForCurrentTab('url');
+  } else if (command === 'disable-indexing-current-domain') {
+    void disableIndexingForCurrentTab('domain');
   }
 });
 
@@ -371,37 +468,7 @@ function cjsMsgHandler(request, sender, sendResponse) {
         const baseURL = u.endsWith('/') ? u : u + '/';
         (async () => {
           try {
-            const rulesResp = await fetchAPI(baseURL + 'api/rules', { customHeaders });
-            if (!rulesResp.ok) {
-              sendResponse({ error: `Failed to fetch rules: ${rulesResp.status}` });
-              return;
-            }
-            const rulesData = await rulesResp.json();
-            const existingSkip: string[] = rulesData.skip ?? [];
-            const existingPriority: string[] = rulesData.priority ?? [];
-            const newSkip = [...existingSkip, request.pattern];
-            const saveResp = await fetchAPI(baseURL + 'api/rules', {
-              formData: {
-                skip: newSkip.join(' '),
-                priority: existingPriority.join(' '),
-              },
-              customHeaders,
-            });
-            if (!saveResp.ok) {
-              sendResponse({ error: `Failed to save rule: ${saveResp.status}` });
-              return;
-            }
-            if (request.deleteQuery) {
-              const deleteResp = await fetchAPI(baseURL + 'api/delete', {
-                body: { query: request.deleteQuery },
-                customHeaders,
-              });
-              if (!deleteResp.ok) {
-                sendResponse({ error: `Failed to delete documents: ${deleteResp.status}` });
-                return;
-              }
-            }
-            skipRulesCache = null;
+            await saveSkipRule(baseURL, customHeaders, request.pattern, request.deleteQuery);
             sendResponse({ ok: true });
             // Grey out the icon on the active tab immediately
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

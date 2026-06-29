@@ -20,6 +20,20 @@
         "mac": "Command+I"
       },
       "description": "Index current page"
+    },
+    "disable-indexing-current-page": {
+      "suggested_key": {
+        "default": "Ctrl+B",
+        "mac": "Command+B"
+      },
+      "description": "Disable indexing for current page"
+    },
+    "disable-indexing-current-domain": {
+      "suggested_key": {
+        "default": "Ctrl+Y",
+        "mac": "Command+Y"
+      },
+      "description": "Disable indexing for current domain"
     }
   },
   "content_scripts": [
