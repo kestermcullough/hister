@@ -1099,6 +1099,8 @@ func Search(cfg *config.Config, q *Query) (*Results, error) {
 		req.SortBy([]string{"domain", "_id"})
 	case "date":
 		req.SortBy([]string{"-added", "_id"})
+	case "visits":
+		req.SortBy([]string{"-add_count", "-added", "_id"})
 	default:
 		sortByScore = true
 		req.SortBy([]string{"-_score", "-added", "_id"})

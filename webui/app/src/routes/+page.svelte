@@ -2013,7 +2013,7 @@
                           Sort by
                         </p>
                         <div class="flex flex-col gap-1">
-                          {#each [['', 'Relevance'], ['date', 'Date (newest first)'], ['domain', 'Domain']] as [value, label] (value)}
+                          {#each [['', 'Relevance'], ['visits', 'Most visited'], ['date', 'Date (newest first)'], ['domain', 'Domain']] as [value, label] (value)}
                             <button
                               class="font-inter flex cursor-pointer items-center gap-2 rounded-none border-[2px] px-2 py-1 text-xs transition-colors {currentSort ===
                               value
