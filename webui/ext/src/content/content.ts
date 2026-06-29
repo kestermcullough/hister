@@ -47,8 +47,7 @@ function scheduleUpdate() {
 function extract(sendResponse, actionType, force) {
   if (!isContextValid()) return;
   const navEntry = window.performance.getEntries().find((e) => e.entryType === 'navigation') as
-    | PerformanceNavigationTiming
-    | undefined;
+    PerformanceNavigationTiming | undefined;
   if (navEntry && navEntry.responseStatus > 299 && !force) {
     return;
   }
