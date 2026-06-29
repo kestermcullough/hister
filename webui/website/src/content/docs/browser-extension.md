@@ -51,14 +51,17 @@ The extension detects when you click on a search result in **Google** or **DuckD
 
 Clicking the extension icon opens the popup, which provides quick access to the most common controls.
 
-| Control                           | Description                                                                                               |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Automatic indexing** toggle     | Enable or disable automatic page indexing. The setting is saved immediately.                              |
-| **Reindex Page** button           | Force a re-submission of the current page to the server.                                                  |
-| **Authenticate Extension** button | Copy session cookies from the logged-in Hister web UI to authenticate the extension (user handling only). |
-| **Settings icon** (⚙)             | Expand an inline form to view and update the Server URL without opening the full options page.            |
+| Control                                      | Description                                                                                                           |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Automatic indexing** toggle                | Enable or disable automatic page indexing. The setting is saved immediately.                                          |
+| **Reindex Page** button                      | Force a re-submission of the current page to the server.                                                              |
+| **Authenticate Extension** button            | Copy session cookies from the logged-in Hister web UI to authenticate the extension (user handling only).             |
+| **Settings icon** (⚙)                        | Expand an inline form to view and update the Server URL without opening the full options page.                        |
+| **Show indicator for indexed pages** setting | Show a `✓` badge on pages that are already indexed. This is available after opening the settings view from the popup. |
 
 A status banner appears at the bottom of the popup after any action, showing success or error feedback. If the server rejected the last submission, a `!` badge is shown on the extension icon; saving valid settings clears it.
+
+The indexed page indicator is off by default. To enable it, click the extension icon, open the settings view with the settings icon, then turn on **Show indicator for indexed pages**. When enabled, the extension checks the active page against your Hister server and keeps a `✓` badge visible on pages already present in the index.
 
 ## Options Page
 
