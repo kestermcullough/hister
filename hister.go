@@ -203,7 +203,11 @@ var listenCmd = &cobra.Command{
 		}
 		if len(cfg.Indexer.Directories) > 0 {
 			fileQueue := indexer.NewFileIndexQueue()
-			go fileQueue.Run(context.Background())
+			go func() {
+				if err := fileQueue.Run(context.Background()); err != nil {
+					log.Error().Err(err).Msg("File index queue failed")
+				}
+			}()
 			go fileQueue.EnqueueAll(cfg.Indexer.Directories)
 			go func() {
 				if err := files.WatchDirectories(context.Background(), cfg.Indexer.Directories, func(path string) {
