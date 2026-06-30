@@ -1596,7 +1596,9 @@ func servePreview(c *webContext) {
 	var resp sdk.PreviewResponse
 	var err error
 	if doc.HTML == "" {
-		resp = sdk.PreviewResponse{Content: html.EscapeString(doc.Text)}
+		// [fork] No stored snapshot (disable_previews). Serve the saved plain text,
+		// wrapped so newlines/spacing render readably instead of collapsing.
+		resp = sdk.PreviewResponse{Content: "<pre style=\"white-space:pre-wrap;word-break:break-word;margin:0;font:inherit\">" + html.EscapeString(doc.Text) + "</pre>"}
 	} else {
 		resp, err = extractor.PreviewContext(c.Request.Context(), doc, extractorName)
 		if err != nil {

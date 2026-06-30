@@ -1632,7 +1632,8 @@
         historyEnabled: appConfig.historyEnabled,
         search: appConfig.search,
       };
-      disablePreviews = (appConfig as any).disablePreviews ?? false;
+      // [fork] Keep preview UI enabled; snapshots aren't stored but the text fallback is served.
+      disablePreviews = false;
       if (config.semanticEnabled) {
         // Apply server defaults only when the user has not yet customised these.
         similarityThreshold = savedSimilarityThreshold ?? config.similarityThreshold;
