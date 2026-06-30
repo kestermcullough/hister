@@ -1,0 +1,7 @@
+# [fork] Local-build deployment overrides — kept out of upstream so rebases stay clean.
+# Renames the image so a previously-pulled ghcr.io/asciimoo/hister:latest can never
+# shadow our patched build. `build:` (context/target) is inherited from compose.yml.
+# Deploy:   docker compose up -d --build
+services:
+  hister:
+    image: hister:fork
