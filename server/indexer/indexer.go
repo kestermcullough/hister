@@ -22,6 +22,7 @@ import (
 	"github.com/asciimoo/hister/server/extractor"
 	"github.com/asciimoo/hister/server/indexer/querybuilder"
 	"github.com/asciimoo/hister/server/model"
+	"github.com/asciimoo/hister/server/sanitizer"
 	"github.com/asciimoo/hister/server/types"
 	"github.com/asciimoo/hister/server/vectorstore"
 
@@ -56,6 +57,7 @@ type indexer struct {
 	embedCancel       context.CancelFunc
 	embedWg           sync.WaitGroup // tracks in-flight async embeddings
 	disablePreviews   bool
+	stripImages       bool
 }
 
 const (
@@ -271,6 +273,7 @@ func Init(cfg *config.Config) error {
 		return err
 	}
 	i.disablePreviews = cfg.App.DisablePreviews
+	i.stripImages = cfg.App.StripImages
 	if cfg.SemanticSearch.Enable {
 		vs, err := vectorstore.New(cfg)
 		if err != nil {
@@ -373,8 +376,9 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 	if err != nil {
 		return err
 	}
-	// Propagate the disablePreviews flag so the temp indexer skips HTML storage too.
+	// Propagate the disablePreviews/stripImages flags so the temp indexer matches storage behavior.
 	tmpIdx.disablePreviews = idx.disablePreviews
+	tmpIdx.stripImages = idx.stripImages
 	// The data store is shared between the live and temp indexers so that
 	// content-addressed files written during reindex are immediately usable
 	// after the rename step. No data directory rename is needed.
@@ -502,6 +506,7 @@ func Reindex(basePath string, rules *config.Rules, skipSensitiveChecks bool, det
 	}
 	// Restore settings that are not part of the index state.
 	i.disablePreviews = idx.disablePreviews
+	i.stripImages = idx.stripImages
 	// Restore the vector store and embedder on the newly initialized global indexer.
 	if vs != nil && embedder != nil {
 		i.vectorStore = vs
@@ -744,6 +749,9 @@ func (i *indexer) prepareForStorage(d *document.Document) error {
 		d.HTMLKey = ""
 	} else {
 		if d.HTML != "" {
+			if i.stripImages {
+				d.HTML = sanitizer.StripImages(d.HTML)
+			}
 			key, err := i.data.write(htmlSubdir, []byte(d.HTML))
 			if err != nil {
 				return fmt.Errorf("store HTML: %w", err)
