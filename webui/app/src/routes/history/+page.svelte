@@ -471,7 +471,10 @@
     }
     openResultsOnNewTab = (cfg as any).openResultsOnNewTab ?? false;
     keyHandler = new KeyHandler((cfg as any).hotkeys ?? {}, hotkeyActions);
-    disablePreviews = (cfg as any).disablePreviews ?? false;
+    // [fork] Ignore the server's disable_previews in the UI. The server still skips
+    // storing HTML snapshots, but servePreview() falls back to the saved text, so we
+    // keep the preview button/panel available to read that text.
+    disablePreviews = false;
   });
 
   // Reset highlight when filtered list changes

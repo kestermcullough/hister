@@ -1353,7 +1353,8 @@
         canWrite: appConfig.canWrite,
         historyEnabled: appConfig.historyEnabled,
       };
-      disablePreviews = (appConfig as any).disablePreviews ?? false;
+      // [fork] Keep preview UI enabled; snapshots aren't stored but the text fallback is served.
+      disablePreviews = false;
       if (config.semanticEnabled) {
         // Apply server defaults only when the user has not yet customised these.
         if (localStorage.getItem('hister-semantic-threshold') === null)

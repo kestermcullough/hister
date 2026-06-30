@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	iofs "io/fs"
 	"mime"
 	"net"
@@ -1504,7 +1505,9 @@ func servePreview(c *webContext) {
 	var resp types.PreviewResponse
 	var err error
 	if doc.HTML == "" {
-		resp = types.PreviewResponse{Content: doc.Text}
+		// [fork] No stored snapshot (disable_previews). Serve the saved plain text,
+		// wrapped so newlines/spacing render readably instead of collapsing.
+		resp = types.PreviewResponse{Content: "<pre style=\"white-space:pre-wrap;word-break:break-word;margin:0;font:inherit\">" + html.EscapeString(doc.Text) + "</pre>"}
 	} else {
 		resp, err = extractor.Preview(doc, extractorName)
 		if err != nil {
