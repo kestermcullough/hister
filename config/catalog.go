@@ -350,6 +350,14 @@ func FieldCatalog() []FieldMetadata {
 			Schema:      SettingSchema{Sensitivity: "none"},
 		},
 		{
+			// [fork] app.strip_images: drop images from stored snapshots.
+			Path:           "app.strip_images",
+			Label:          "Strip snapshot images",
+			Description:    "Remove images from stored page snapshots while keeping their formatting.",
+			Schema:         SettingSchema{Sensitivity: "none"},
+			ReadOnlyReason: "Fork setting; manage it in the main configuration.",
+		},
+		{
 			Path:           "app.profiler",
 			Label:          "Profiler",
 			Description:    "Enable server profiling.",

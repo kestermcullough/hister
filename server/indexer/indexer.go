@@ -27,6 +27,7 @@ import (
 	"github.com/asciimoo/hister/server/languages"
 	"github.com/asciimoo/hister/server/metrics"
 	"github.com/asciimoo/hister/server/model"
+	"github.com/asciimoo/hister/server/sanitizer"
 	"github.com/asciimoo/hister/server/vectorstore"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,6 +68,7 @@ type Indexer struct {
 	fileExtractor     *extract.Extractor
 	sensitivePattern  *regexp.Regexp
 	semanticConfig    config.SemanticSearch
+	stripImages       bool
 	snippetLength     int
 	snippetStyles     map[string]string
 	metricsMu         sync.RWMutex
@@ -465,6 +467,7 @@ func New(cfg *config.Config) (*Indexer, error) {
 	if cfg.Indexer.MaxFileSize > 0 {
 		idx.maxFileSize = cfg.Indexer.MaxFileSize * 1024 * 1024 // bytes
 	}
+	idx.stripImages = cfg.App.StripImages
 	if cfg.SemanticSearch.Enable {
 		vs, err := vectorstore.New(cfg)
 		if err != nil {
@@ -790,6 +793,7 @@ func (idx *Indexer) reindex(ctx context.Context, basePath string, rules *config.
 		fileExtractor:    idx.fileExtractor,
 		sensitivePattern: idx.sensitivePattern,
 		disablePreviews:  idx.disablePreviews,
+		stripImages:      idx.stripImages,
 		userHandling:     idx.userHandling,
 		data:             idx.data,
 		embedCtx:         idx.embedCtx,
@@ -1566,6 +1570,9 @@ func (i *Indexer) prepareForStorage(d *document.Document) (_ *dataWrite, err err
 		d.HTMLKey = ""
 	} else {
 		if d.HTML != "" {
+			if i.stripImages {
+				d.HTML = sanitizer.StripImages(d.HTML)
+			}
 			key, err := data.write(htmlSubdir, []byte(d.HTML))
 			if err != nil {
 				return nil, fmt.Errorf("store HTML: %w", err)

@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/microcosm-cc/bluemonday"
 )
 
@@ -210,4 +211,61 @@ func SanitizeText(s string) string {
 	s = textSanitizerPolicy.Sanitize(s)
 	s = stdhtml.UnescapeString(s)
 	return strings.TrimSpace(s)
+}
+
+// imageStyleDeclRe matches inline-style CSS declarations that pull in images
+// (background images, list/cursor/border images, masks) so they can be removed
+// while leaving the rest of the inline style intact.
+var imageStyleDeclRe = regexp.MustCompile(`(?i)\s*(background-image|background|list-style-image|list-style|cursor|border-image|mask|content)\s*:[^;]*url\([^)]*\)[^;]*;?`)
+
+// dataImageRe matches any data: image URI left in an attribute or style value.
+var dataImageRe = regexp.MustCompile(`(?i)data:image/[^"')\s]+`)
+
+// imageSelectors lists elements that are images, or that commonly carry hidden
+// or fallback images (noscript/template content is parsed as raw text, so its
+// <img> tags escape a normal traversal — and they're a classic tracking-pixel
+// vector). All are removed wholesale.
+const imageSelectors = `img, picture, source, svg, image, input[type="image"], object[type^="image"], embed[type^="image"], noscript, template`
+
+// StripImages removes all images from an HTML fragment while preserving the rest
+// of the markup and formatting. It deletes image elements (img/picture/source/
+// svg/inline data: images), image-bearing attributes (srcset, lazy-load data-*,
+// video poster), and inline-style image references (background-image, etc.).
+//
+// Used at store time when app.strip_images is enabled so saved snapshots keep
+// their layout and text without the (often base64-inlined) image payload that
+// dominates storage. On parse failure the input is returned unchanged.
+func StripImages(h string) string {
+	if h == "" {
+		return ""
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(h))
+	if err != nil {
+		return h
+	}
+	doc.Find(imageSelectors).Remove()
+	doc.Find("*").Each(func(_ int, s *goquery.Selection) {
+		for _, a := range []string{"srcset", "data-src", "data-srcset", "data-lazy-src", "data-original", "poster", "background"} {
+			s.RemoveAttr(a)
+		}
+		if src, ok := s.Attr("src"); ok && dataImageRe.MatchString(src) {
+			s.RemoveAttr("src")
+		}
+		if style, ok := s.Attr("style"); ok {
+			cleaned := imageStyleDeclRe.ReplaceAllString(style, "")
+			if dataImageRe.MatchString(cleaned) {
+				cleaned = "" // a data: image lingered in an unexpected property; drop the whole style
+			}
+			if strings.TrimSpace(strings.Trim(cleaned, "; ")) == "" {
+				s.RemoveAttr("style")
+			} else {
+				s.SetAttr("style", cleaned)
+			}
+		}
+	})
+	out, err := doc.Find("body").Html()
+	if err != nil {
+		return h
+	}
+	return out
 }

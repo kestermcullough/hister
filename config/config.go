@@ -76,6 +76,7 @@ type App struct {
 	DisplayExtractorConfig bool   `yaml:"display_extractor_config" mapstructure:"display_extractor_config"`
 	DisablePreviews        bool   `yaml:"disable_previews" mapstructure:"disable_previews"`
 	Profiler               bool   `yaml:"profiler" mapstructure:"profiler"`
+	StripImages            bool   `yaml:"strip_images" mapstructure:"strip_images"`
 }
 
 type TUI struct {
