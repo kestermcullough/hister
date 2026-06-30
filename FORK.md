@@ -15,6 +15,15 @@ track `master` and replay our patches with `git rebase`.
   cleanly. Files: `server/server.go`, `webui/app/src/routes/+page.svelte`,
   `webui/app/src/routes/history/+page.svelte`.
 
+- **`app.strip_images`: drop all images from stored snapshots, keep formatting.**
+  With previews enabled (`disable_previews: false`), `prepareForStorage` runs the
+  snapshot through a surgical goquery pass (`sanitizer.StripImages`) that removes
+  every image element (img/picture/source/svg/noscript/template + inline `data:`
+  URIs) and image-bearing attrs/styles, while preserving all other markup — rich
+  previews without the base64 image payload that dominates storage. Files:
+  `config/config.go`, `server/sanitizer/sanitizer.go`, `server/indexer/indexer.go`.
+  Enable in `/hister/data/config.yml`: `disable_previews: false` + `strip_images: true`.
+
 ## Deploy (build on each machine)
 
 ```bash
