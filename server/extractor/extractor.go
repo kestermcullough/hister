@@ -17,6 +17,7 @@ import (
 
 	"github.com/asciimoo/hister/config"
 	"github.com/asciimoo/hister/server/document"
+	"github.com/asciimoo/hister/server/extractor/extractors/defuddle"
 	"github.com/asciimoo/hister/server/extractor/extractors/embeddedvideo"
 	"github.com/asciimoo/hister/server/extractor/extractors/github"
 	"github.com/asciimoo/hister/server/extractor/extractors/godoc"
@@ -147,6 +148,7 @@ var extractors = []Extractor{
 	&mastodon.MastodonExtractor{},
 	&notion.NotionExtractor{},
 	&ytdlp.YtdlpExtractor{},
+	&defuddle.DefuddleExtractor{},
 	&readabilityExtractor{},
 	&basicExtractor{},
 }
