@@ -1,0 +1,72 @@
+app:
+    directory: /hister/data
+    search_url: https://google.com/search?q={query}
+    access_token: ""
+    user_handling: false
+    log_level: info
+    debug_sql: false
+    open_results_on_new_tab: false
+    redirect_on_no_results: true
+    display_extractor_config: true
+    disable_previews: false
+    strip_images: true
+server:
+    address: 0.0.0.0:4433
+    base_url: http://localhost:4433
+    database: db.sqlite3
+    oauth: {}
+    oauth_only: false
+indexer:
+    detect_languages: true
+    directories: []
+    max_file_size_mb: 1
+crawler:
+    timeout: 5
+    delay: 0
+    backend: http
+    backend_options: {}
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+    headers: {}
+    cookies: []
+    no_robots: false
+semantic_search:
+    enable: false
+    embedding_endpoint: http://localhost:11434/v1/embeddings
+    embedding_model: qwen3-embedding:8b
+    api_key: ""
+    headers: {}
+    dimensions: 4096
+    max_context_length: 4096
+    chunk_overlap: 128
+    query_prefix: 'query: '
+    document_prefix: ""
+    similarity_threshold: 0.1
+    result_limit: 50
+    semantic_weight: 0.4
+hotkeys:
+    web:
+        /: focus_search_input
+        '?': show_hotkeys
+        alt+d: delete_result
+        alt+enter: open_result_in_new_tab
+        alt+j: select_next_result
+        alt+k: select_previous_result
+        alt+o: open_query_in_search_engine
+        alt+v: view_result_popup
+        enter: open_result
+        tab: autocomplete
+    tui: {}
+sensitive_content_patterns:
+    aws_access_key: (^|[\s"'])AKIA[0-9A-Z]{16}([\s"']|$)
+    aws_secret_key: (?i)aws(.{0,20})?(secret)?(.{0,20})?['"][0-9a-zA-Z\/+]{40}['"]
+    generic_private_key: '-----BEGIN ((RSA|EC|DSA) )?PRIVATE KEY-----'
+    github_token: (ghp|gho|ghu|ghs|ghr)_[a-zA-Z0-9]{36}
+    pgp_private_key: '-----BEGIN PGP PRIVATE KEY BLOCK-----'
+    ssh_private_key: '-----BEGIN OPENSSH PRIVATE KEY-----'
+extractors:
+    defuddle:
+        enable: true
+    ytdlp:
+        enable: true
+        options:
+            fetch_subtitles: true
