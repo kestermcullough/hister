@@ -130,6 +130,13 @@ func validateLiveManifest(manifest *liveManifest) error {
 	}
 	var missing []string
 	for _, candidate := range extractors {
+		// Optional extractors can require local binaries or sidecar services that
+		// are not available to the generic live-test runner. They may still have
+		// manifest cases (for example Ytdlp), but deterministic package tests are
+		// sufficient when they do not.
+		if !candidate.GetConfig().Enable {
+			continue
+		}
 		if _, ok := covered[strings.ToLower(candidate.Name())]; !ok {
 			missing = append(missing, candidate.Name())
 		}

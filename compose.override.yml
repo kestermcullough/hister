@@ -5,3 +5,16 @@
 services:
   hister:
     image: hister:fork
+    depends_on:
+      - defuddle
+
+  # [fork] Defuddle extraction sidecar (Obsidian Web Clipper's engine: defuddle/node
+  # + linkedom). The Go `defuddle` extractor POSTs rendered HTML to
+  # http://defuddle:3000/parse. Enable it in /hister/data/config.yml:
+  #   extractors: { defuddle: { enable: true } }
+  defuddle:
+    build: ./defuddle-svc
+    image: defuddle-svc:latest
+    container_name: hister-defuddle
+    restart: unless-stopped
+    init: true
