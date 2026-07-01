@@ -22,24 +22,49 @@ track `master` and replay our patches with `git rebase`.
   URIs) and image-bearing attrs/styles, while preserving all other markup — rich
   previews without the base64 image payload that dominates storage. Files:
   `config/config.go`, `server/sanitizer/sanitizer.go`, `server/indexer/indexer.go`.
-  Enable in `/hister/data/config.yml`: `disable_previews: false` + `strip_images: true`.
+  Enable in config: `disable_previews: false` + `strip_images: true`.
+
+- **Defuddle extractor + Node sidecar.** Server-side extractor
+  (`server/extractor/extractors/defuddle/`) POSTs rendered HTML to a Node `defuddle`
+  sidecar (Obsidian Web Clipper's engine); runs before Readability, so it keeps
+  discussion/comments (Reddit/HN) that Readability drops — in both searchable text and
+  previews. Sidecar in `defuddle-svc/`; service + memory caps in `compose.override.yml`.
+  Enable: `extractors.defuddle.enable: true`.
+
+- **`--min-visit` fix.** Registered the flag on `import-browser` too (upstream only put
+  it on the JSON `import` command, so it silently no-op'd). File: `cmd/root.go`.
 
 ## Deploy (build on each machine)
 
 ```bash
 git clone https://github.com/kestermcullough/hister
 cd hister
-docker compose up -d --build      # builds the patched image locally and runs it
+docker compose up -d --build      # builds hister + the defuddle sidecar, runs both
 ```
 
-Open it at <http://localhost:4433>. In WSL, Windows reaches the same URL via
-localhost forwarding.
+Open it at <http://localhost:4433>. In WSL, Windows reaches the same URL via localhost
+forwarding. That's the whole install — identical settings on every machine.
 
-- App config (e.g. `disable_previews`) lives in the persistent Docker volume at
-  `/hister/data/config.yml`, **not** in this repo — so it survives rebuilds and
-  is set per-machine.
-- `compose.override.yml` (committed) renames the local image to `hister:fork` so a
-  previously-pulled upstream image can't shadow the patched build.
+- **Config is code:** `config.yml` in this repo is bind-mounted read-only into the
+  container (`compose.override.yml` points `HISTER_CONFIG` at it), so every clone gets
+  the same settings (strip_images, defuddle+ytdlp enabled, Chrome UA…). To change config,
+  edit `config.yml` and `docker compose up -d` again. **Data** (index, DB, secret key,
+  skip rules) stays per-machine in the `hister_data` Docker volume.
+- `compose.override.yml` (committed) renames the image to `hister:fork` (so a pulled
+  upstream image can't shadow the patched build), adds the `defuddle` sidecar, and caps
+  container memory (hister 3g, defuddle 1g).
+
+### WSL2 note (important if deploying under WSL)
+Heavy builds + long import crawls can OOM WSL2 (defaults: 16 GB RAM / 4 GB swap). Give it
+a swap cushion in `%USERPROFILE%\.wslconfig`, then run `wsl --shutdown` from Windows:
+
+```ini
+[wsl2]
+memory=16GB
+swap=24GB
+[experimental]
+autoMemoryReclaim=gradual
+```
 
 ## Update to the latest upstream master
 

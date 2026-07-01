@@ -5,6 +5,16 @@
 services:
   hister:
     image: hister:fork
+    mem_limit: 3g
+    memswap_limit: 4g
+    # [fork] Config-as-code: deploy with the committed config.yml (bind-mounted read-only)
+    # so a fresh clone comes up with identical settings (strip_images, defuddle+ytdlp on,
+    # Chrome UA, etc.). Data still persists in the hister_data volume.
+    environment:
+      - HISTER_CONFIG=/etc/hister/config.yml
+    volumes:
+      - hister_data:/hister/data
+      - ./config.yml:/etc/hister/config.yml:ro
     depends_on:
       - defuddle
 
@@ -18,3 +28,5 @@ services:
     container_name: hister-defuddle
     restart: unless-stopped
     init: true
+    mem_limit: 1g
+    memswap_limit: 1500m
