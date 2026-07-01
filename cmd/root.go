@@ -267,6 +267,10 @@ func init() {
 	listURLsCmd.Flags().Bool("offline", false, "connect to the indexer directly without using the HTTP API (server should be stopped)")
 
 	browserImportCmd.Flags().String("backend", "", "Crawler backend to use (\"http\", \"chromedp\", or \"bidi\")")
+	// [fork] Register --min-visit on import-browser too. Upstream only registered it on
+	// the JSON `import` command, so browser.go's cmd.Flags().GetInt("min-visit") always
+	// errored and the visit-count filter silently no-op'd.
+	browserImportCmd.Flags().IntP("min-visit", "m", 1, "only import URLs that were opened at least 'min-visit' times")
 
 	importCmd.Flags().IntP("min-visit", "m", 1, "only import URLs that were opened at least 'min-visit' times")
 	importCmd.Flags().String("backend", "", "Crawler backend to use (\"http\", \"chromedp\", or \"bidi\")")
