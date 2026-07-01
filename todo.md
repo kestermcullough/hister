@@ -42,8 +42,26 @@ can carry patches for (see FORK.md for the patch/rebase workflow).
    `…/Edge/User Data/Default/Sessions/Tabs_*` & `Session_*` (~1,054 URLs), which
    `import-browser` does not read. Needs an SNSS parser → feed URLs to `hister index`.
 
-7. **Native YouTube transcript extractor** — replace ytdlp for captions (faster, drops
-   the yt-dlp dependency). Fetch YouTube's transcript/innertube endpoint directly in Go.
+7. **YouTube transcripts — enable ytdlp; do NOT hand-roll a native fetcher.**
+   Research (2026-07-01): YouTube gates captions behind proof-of-origin tokens +
+   client-specific innertube context. Server-side, the `timedtext` baseUrl returns
+   0 bytes, the WEB player API returns 0 caption tracks, and ANDROID returns 400 —
+   without replicating ytdlp's full client-spoof/pot dance. A native Go fetcher would
+   be fragile and high-maintenance (re-doing ytdlp's job as YouTube keeps changing).
+   - **Near-term (works today):** enable the existing `ytdlp` extractor (already in the
+     release image, disabled by default): `extractors.ytdlp.enable: true` +
+     `options.fetch_subtitles: true`. It sits before `defuddle`, so it owns youtube.com.
+   - **Robust/fast path (recommended — researched 2026-07-01 from Defuddle's
+     `src/extractors/youtube.ts`):** fetch the transcript **client-side in Hister's
+     extension**, where the logged-in YouTube session sidesteps the bot-wall. On watch
+     pages: read the caption track from the page's inline `ytInitialPlayerResponse`
+     (`captions.playerCaptionsTracklistRenderer.captionTracks[].baseUrl`), then
+     `fetch(baseUrl)` via the page's **authenticated** fetch → parse timedtext XML →
+     attach to `PageData.text`. Fallbacks: InnerTube `youtubei/v1/player` with an
+     Android client context; or click the transcript panel and scrape
+     `ytd-transcript-segment-renderer`. One request, fast, live-visits only. Adapt
+     Defuddle's `youtube.ts` + `utils/transcript.ts` (open source). This replaces
+     server-side ytdlp for live YouTube captures.
 
 8. **Obsidian Web Clipper / Defuddle content engine** — better extraction on hard pages
    than readability. Realistic route: a small Node `defuddle` sidecar the extractor
