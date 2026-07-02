@@ -18,6 +18,11 @@ services:
     volumes:
       - hister_data:/hister/data
       - ./config.yml:/etc/hister/config.yml:ro
+      # [fork] Optional per-deployment cookies file for yt-dlp
+      # (Netscape format). Only mounted if the file exists locally, so a fresh
+      # clone without cookies still comes up cleanly. Referenced by
+      # config.yml -> extractors.ytdlp.options.cookies_file. Gitignored.
+      - ./cookies.txt:/etc/hister/cookies.txt:ro
     depends_on:
       - defuddle
 

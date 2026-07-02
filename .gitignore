@@ -22,3 +22,4 @@ webui/website/playwright-report/
 scripts/fetch_dataset_helpers/my-rfc-mirror/
 scripts/**/__pycache__
 .env
+cookies.txt

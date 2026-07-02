@@ -70,3 +70,6 @@ extractors:
         enable: true
         options:
             fetch_subtitles: true
+            # Netscape-format cookies file, bind-mounted in via compose.override.yml.
+            # Bypasses YouTube's server-IP bot wall for signed-in content.
+            cookies_file: /etc/hister/cookies.txt
