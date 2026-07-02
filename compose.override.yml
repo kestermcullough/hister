@@ -12,6 +12,9 @@ services:
     # Chrome UA, etc.). Data still persists in the hister_data volume.
     environment:
       - HISTER_CONFIG=/etc/hister/config.yml
+      # [fork] Per-deployment base_url from .env (gitignored). Keeps this public
+      # fork free of any specific IP/hostname. Falls back to upstream default if unset.
+      - HISTER__SERVER__BASE_URL=${HISTER_BASE_URL:-http://localhost:4433}
     volumes:
       - hister_data:/hister/data
       - ./config.yml:/etc/hister/config.yml:ro
