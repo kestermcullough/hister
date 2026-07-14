@@ -422,6 +422,7 @@ func TestDefaultRegistryOrder(t *testing.T) {
 		"Bluesky",
 		"Twitter",
 		"Notion",
+		"GoogleDocs",
 		"Ytdlp",
 		"ChatGPT",
 		"Defuddle",

@@ -37,7 +37,8 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    `indexURL` failures only warn. Transient server/network blips drop URLs with no
    retry.
 
-6. **Public Google Docs are not captured usefully.**
+6. **Public Google Docs are not captured usefully.** **[patched in fork — `googledocs`
+   extractor implements the export-URL rewrite below; Sheets/Slides still open]**
    `docs.google.com/document/d/…/edit` renders content entirely via JS. The http
    crawler backend gets an empty shell → Readability fails → Basic saves a stub
    with almost no text. Two workable fixes:

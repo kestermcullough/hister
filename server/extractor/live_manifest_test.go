@@ -129,12 +129,21 @@ func validateLiveManifest(manifest *liveManifest) error {
 		}
 	}
 	var missing []string
+	// Fork integrations below have deterministic package tests but no suitable
+	// public endpoint for the generic live suite. In particular, committing a
+	// user's Google document URL as a fixture would leak private history data.
+	unitTestedForkExtractors := map[string]struct{}{
+		"googledocs": {},
+	}
 	for _, candidate := range extractors {
 		// Optional extractors can require local binaries or sidecar services that
 		// are not available to the generic live-test runner. They may still have
 		// manifest cases (for example Ytdlp), but deterministic package tests are
 		// sufficient when they do not.
 		if !candidate.GetConfig().Enable {
+			continue
+		}
+		if _, ok := unitTestedForkExtractors[strings.ToLower(candidate.Name())]; ok {
 			continue
 		}
 		if _, ok := covered[strings.ToLower(candidate.Name())]; !ok {
