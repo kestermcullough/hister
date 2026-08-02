@@ -271,6 +271,51 @@ func TestMatch(t *testing.T) {
 	}
 }
 
+func TestCookieArgsCopiesToWritableDir(t *testing.T) {
+	sourceDir := t.TempDir()
+	source := filepath.Join(sourceDir, "cookies.txt")
+	const contents = "# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tFALSE\t0\ttoken\tvalue\n"
+	if err := os.WriteFile(source, []byte(contents), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	e := &YtdlpExtractor{}
+	if err := e.SetConfig(&config.Extractor{
+		Enable: true,
+		Options: map[string]any{
+			"cookies_file": source,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	args := e.cookieArgs(dir)
+	if len(args) != 2 || args[0] != "--cookies" {
+		t.Fatalf("cookieArgs() = %q, want --cookies and a path", args)
+	}
+	if args[1] == source {
+		t.Fatal("cookieArgs() returned the read-only source instead of a writable copy")
+	}
+	if filepath.Dir(args[1]) != dir {
+		t.Fatalf("cookie copy directory = %q, want %q", filepath.Dir(args[1]), dir)
+	}
+	got, err := os.ReadFile(args[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != contents {
+		t.Fatalf("cookie copy contents = %q, want %q", got, contents)
+	}
+	info, err := os.Stat(args[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("cookie copy permissions = %o, want 600", info.Mode().Perm())
+	}
+}
+
 func TestExtract(t *testing.T) {
 	e, _ := newTestExtractor(t, false)
 	d := &document.Document{URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw"}

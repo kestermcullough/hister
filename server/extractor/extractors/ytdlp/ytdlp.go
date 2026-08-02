@@ -11,7 +11,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -158,15 +160,34 @@ func (e *YtdlpExtractor) subLanguage() string {
 }
 
 // cookieArgs returns yt-dlp CLI flags for cookie authentication based on config.
-func (e *YtdlpExtractor) cookieArgs() []string {
+// When dir is provided, a configured cookie file is copied there so yt-dlp can
+// safely update it even when the original was mounted read-only.
+func (e *YtdlpExtractor) cookieArgs(dir string) []string {
 	var args []string
 	if f, ok := e.GetConfig().Options["cookies_file"].(string); ok && f != "" {
-		args = append(args, "--cookies", f)
+		cookieFile := f
+		if dir != "" {
+			writableCopy := filepath.Join(dir, "cookies.txt")
+			if err := copyCookiesFile(f, writableCopy); err != nil {
+				log.Warn().Err(err).Str("path", f).Msg("failed to copy yt-dlp cookie file; using configured path")
+			} else {
+				cookieFile = writableCopy
+			}
+		}
+		args = append(args, "--cookies", cookieFile)
 	}
 	if b, ok := e.GetConfig().Options["cookies_from_browser"].(string); ok && b != "" {
 		args = append(args, "--cookies-from-browser", b)
 	}
 	return args
+}
+
+func copyCookiesFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o600)
 }
 
 func (e *YtdlpExtractor) Match(d *sdk.Document) bool {
@@ -262,25 +283,31 @@ func (e *YtdlpExtractor) pruneCache() {
 }
 
 func (e *YtdlpExtractor) fetchInfo(ctx context.Context, videoURL string) (*videoInfo, error) {
-	args := []string{
-		"--dump-json",
-		"--no-download",
-		"--no-playlist",
-		"--no-warnings",
-	}
-	args = append(args, e.cookieArgs()...)
-	if extra, ok := e.GetConfig().Options["extra_args"].([]any); ok {
-		for _, a := range extra {
-			if s, ok := a.(string); ok {
-				args = append(args, s)
-			}
-		}
-	}
-	args = append(args, videoURL)
-
 	var out []byte
 	var stderr bytes.Buffer
 	err := e.runJob(ctx, func() error {
+		dir, err := os.MkdirTemp("", "hister-ytdlp-*")
+		if err != nil {
+			return fmt.Errorf("create yt-dlp temp directory: %w", err)
+		}
+		defer os.RemoveAll(dir) //nolint:errcheck // best-effort cleanup
+
+		args := []string{
+			"--dump-json",
+			"--no-download",
+			"--no-playlist",
+			"--no-warnings",
+		}
+		args = append(args, e.cookieArgs(dir)...)
+		if extra, ok := e.GetConfig().Options["extra_args"].([]any); ok {
+			for _, a := range extra {
+				if s, ok := a.(string); ok {
+					args = append(args, s)
+				}
+			}
+		}
+		args = append(args, videoURL)
+
 		ctx, cancel := context.WithTimeout(ctx, e.timeout())
 		defer cancel()
 
@@ -288,7 +315,6 @@ func (e *YtdlpExtractor) fetchInfo(ctx context.Context, videoURL string) (*video
 		cmd := exec.CommandContext(ctx, e.binary(), args...)
 		cmd.Stderr = &stderr
 		log.Debug().Str("args", strings.Join(cmd.Args, " ")).Msg("yt-dlp executing")
-		var err error
 		out, err = cmd.Output()
 		return err
 	})

@@ -73,7 +73,7 @@ func downloadSubtitleForLang(ctx context.Context, e *YtdlpExtractor, info *video
 	} else {
 		args = append(args, "--write-auto-sub")
 	}
-	args = append(args, e.cookieArgs()...)
+	args = append(args, e.cookieArgs(dir)...)
 	args = append(args, info.WebpageURL)
 
 	err = e.runJob(ctx, func() error {

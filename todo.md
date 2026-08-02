@@ -3,6 +3,43 @@
 Working roadmap for this fork of asciimoo/hister. Bugs are upstream issues we can
 carry patches for; see FORK.md for the patch/rebase workflow.
 
+## Today — priority (August 1, 2026)
+
+- [x] **Restore Hister from the post-power-blip crash loop without losing the
+  indexed corpus.** Back up the full `hister_data` volume first, isolate the
+  corrupted Bleve index, restore service, and verify search/document counts.
+  **Completed August 1:** isolated one corrupt one-document segment in the
+  English shard, removed only its snapshot reference, restored 87,091 English /
+  97,577 total pages, and retained a verified full backup on the Extreme SSD.
+- [ ] **Finish and deploy the yt-dlp transcript fix.** The fork is now rebased on
+  upstream v0.17.0 and its checksum-verified standalone yt-dlp packaging and
+  two-job concurrency limiter. The narrow writable-cookie-copy compatibility
+  patch has passed the extractor tests. Build the complete image, then prove a
+  real YouTube transcript is present in the indexed document/preview before
+  marking this complete. Do not retain the old pip packaging patch; only add
+  `--ignore-no-formats-error` if a current-binary test demonstrates it is needed.
+- [ ] **Reconcile the fork with upstream.** The complete 13-commit fork has been
+  rebased in an isolated worktree onto upstream v0.17.0. Review storage
+  migrations and fork-patch overlap, run the complete test/build checks, and
+  deploy only after validation against the backed-up data model.
+- [ ] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
+  health monitoring/alerting. See operational item 13 below.
+- [ ] **Design robust recurring browser imports.** Restore the existing jobs,
+  then reconsider scheduling, retries, source discovery, incremental scope, and
+  last-success/error reporting as a distinct ingestion system. See operational
+  item 14 below.
+- [ ] **Add public Google Sheets capture and fix rule precedence.** The existing
+  fork extractor handles Google Docs only; Sheets/Slides remain unsupported.
+  The live broad `google.*` skip rule also matches `docs.google.com`. Narrow it
+  without opening noisy Google app/search URLs, implement the public Sheets
+  export rewrite, and verify a real Sheet is indexed usefully.
+- [ ] **Audit live skip rules separately from recurring-import filters.** The
+  server's global `rules.json` currently skips Amazon, Home Depot, and several
+  other retailer domains; those rules affect ordinary extension captures as
+  well as imports. Decide which exclusions are genuinely wanted for live
+  browsing, and move import-only noise suppression into the recurring-ingestion
+  workflow instead of keeping it in the global server rule set.
+
 ## Upstream bugs (fork-patch candidates)
 
 1. **`--min-visit` flag is dead for `import-browser`.**
@@ -10,7 +47,8 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    `importCmd.Flags().IntP("min-visit", …)`) but read by `import-browser` from its
    *own* flag set (`cmd/browser.go:207`, `cmd.Flags().GetInt("min-visit")`) → always
    errors → the visit-count filter is silently ignored. Fix: register the flag on
-   `browserImportCmd` (or make it persistent). ~1 line. **[patched in fork]**
+   `browserImportCmd` (or make it persistent). **[fixed upstream in v0.17.0; the
+   obsolete fork patch was dropped during rebase]**
 
 2. **`crawler.delay` is a no-op on the `http` backend (no server-side rate limiting).**
    `CrawlerConfig.Delay` exists and is documented, but only the BiDi backend
@@ -95,6 +133,40 @@ carry patches for; see FORK.md for the patch/rebase workflow.
     below newer live captures and are hard to spot as "new"). Fix: thread the
     visit timestamp through import/`indexURL` and set the document's `added`
     accordingly.
+
+## Operational reliability
+
+12. **Recover safely from the August 2026 hard-reboot index corruption.**
+    **[completed August 1, 2026]**
+    Docker did restart the `hister` service after the power blip, but Hister
+    crash-looped while opening one damaged final segment in the English Bleve
+    index (`fieldDvLoc too small`). SQLite passed `PRAGMA integrity_check`.
+    Preserved a verified full data-volume backup plus the original index root on
+    the Extreme SSD, removed only the bad one-document segment reference, and
+    reconciled the recovered 87,091 English documents with 97,577 total pages
+    across all language shards.
+
+13. **Verify boot recovery and add a visible health check/alert.**
+    `restart: unless-stopped` starts the container once Docker is running, but it
+    cannot recover from an application crash loop. Confirm Docker Desktop starts
+    at login/boot, test Hister after a controlled reboot, and surface an alert
+    when `http://localhost:4433/` is unavailable or the container is unhealthy.
+
+14. **Replace the ad-hoc browser refreshes with robust recurring ingestion.**
+    The loaded launchd jobs currently cover Brave mobile/Profile 2 at 03:00 and
+    Safari at 03:30. Their last successful runs were July 22; every run from July
+    23 through August 1 aborted because SSH to the source Mac timed out. Add
+    retry/health gating and decide which local Brave/Chrome/Vivaldi/Helium
+    profiles need recurring refreshes rather than the existing one-off import
+    scripts. Evaluate a single orchestrated incremental job instead of separate
+    profile scripts; record last-success timestamps and imported/skipped/error
+    counts so stale ingestion is obvious.
+    - Decide how recurring imports handle Google and AI-search result pages
+      before enabling them. Exact-URL dedup does not collapse different search
+      query strings, while some AI-search modes may repeatedly reuse one URL.
+      Prefer a skip/normalization rule or lightweight query-history record that
+      does not recrawl Google result pages; avoid rate-limit pressure and a noisy
+      index full of near-duplicate search pages.
 
 ## Deployment notes
 
