@@ -31,14 +31,18 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   the count unchanged. **Completed August 1:** deployed the full v0.17.0 update;
   the live one-time migration completed across every shard, search returned
   results in the browser, and normal capture continued at 97,588 documents.
-- [ ] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
+- [x] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
   health monitoring/alerting. See operational item 13 below. **August 2:** Docker
   Desktop `AutoStart` is enabled; Hister and Defuddle both use
   `restart: unless-stopped`. Installed a read-only launchd health monitor that
   checks Docker, both container health states, restart counts, and the Hister
   HTTP endpoint every minute. It alerts after three consecutive failures and on
   recovery; simulated failure/recovery and macOS notification tests passed.
-  A controlled Mac reboot and post-login verification remain.
+  **Completed August 2:** after a controlled full Mac reboot, Docker restored
+  both Hister containers automatically on the first verification attempt. Both
+  were healthy with zero restart failures; the corpus remained at 97,610
+  documents with all 19 rules intact. The permanent monitor subsequently
+  reported healthy with zero consecutive failures.
 - [ ] **Design robust recurring browser imports.** Restore the existing jobs,
   then reconsider scheduling, retries, source discovery, incremental scope, and
   last-success/error reporting as a distinct ingestion system. See operational
@@ -176,8 +180,11 @@ carry patches for; see FORK.md for the patch/rebase workflow.
     desktop alert and notifies on recovery. Script:
     `~/bin/hister-health-monitor.sh`; log:
     `~/Library/Logs/HisterHealthMonitor.log`. Simulated failure/recovery and
-    notification tests passed August 2. Remaining: controlled reboot and
-    post-login verification.
+    notification tests passed August 2. A controlled full reboot then passed on
+    the first post-login verification attempt: both containers were healthy with
+    zero restart failures, HTTP responded, and all 97,610 documents / 19 rules
+    remained intact. The one-shot verifier was removed after the test; its small
+    before/after reports remain under `~/Library/Application Support/HisterMonitor/`.
 
 14. **Replace the ad-hoc browser refreshes with robust recurring ingestion.**
     The loaded launchd jobs currently cover Brave mobile/Profile 2 at 03:00 and
