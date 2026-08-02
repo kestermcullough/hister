@@ -1006,6 +1006,11 @@ func TestImportSubcommandFlagOwnership(t *testing.T) {
 			t.Errorf("import file is missing --%s", name)
 		}
 	}
+	for _, c := range []*cobra.Command{importBrowserCmd, importBrowserHistoryCmd, importBookmarksCmd} {
+		if c.Flags().Lookup("job-id") == nil {
+			t.Errorf("%s is missing --job-id", c.CommandPath())
+		}
+	}
 	for _, name := range []string{"backend", "backend-option", "proxy", "header", "cookie"} {
 		for _, importCommand := range []*cobra.Command{importBrowserCmd, importBrowserHistoryCmd, importBookmarksCmd, importLinkdingCmd, importLinkwardenCmd, importKarakeepCmd, importRaindropCmd, importReadeckCmd, importReadwiseCmd, importShaarliCmd} {
 			if importCommand.Flags().Lookup(name) == nil {

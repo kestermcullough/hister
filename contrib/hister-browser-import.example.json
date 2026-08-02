@@ -1,0 +1,28 @@
+{
+  "initial_lookback_days": 30,
+  "job_id": "browser-import-recurring",
+  "overlap_days": 3,
+  "stale_warning_hours": 48,
+  "sources": [
+    {
+      "browser": "brave",
+      "host": "user@remote-host",
+      "kind": "remote-chromium",
+      "name": "remote-brave",
+      "path": "/Users/user/Library/Application Support/BraveSoftware/Brave-Browser/Default/History"
+    },
+    {
+      "browser": "chromium",
+      "host": "user@remote-host",
+      "kind": "remote-safari",
+      "name": "remote-safari",
+      "path": "/Users/user/Library/Safari/History.db"
+    },
+    {
+      "browser": "chrome",
+      "kind": "local-chromium",
+      "name": "local-chrome",
+      "path": "~/Library/Application Support/Google/Chrome/Default/History"
+    }
+  ]
+}

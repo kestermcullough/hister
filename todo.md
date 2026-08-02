@@ -43,10 +43,21 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   were healthy with zero restart failures; the corpus remained at 97,610
   documents with all 19 rules intact. The permanent monitor subsequently
   reported healthy with zero consecutive failures.
-- [ ] **Design robust recurring browser imports.** Restore the existing jobs,
+- [x] **Design robust recurring browser imports.** Restore the existing jobs,
   then reconsider scheduling, retries, source discovery, incremental scope, and
   last-success/error reporting as a distinct ingestion system. See operational
-  item 14 below.
+  item 14 below. **Completed August 2:** replaced the two brittle full-history
+  jobs with one locked incremental orchestrator using an upstream-style named
+  persistent crawl job. It tracks a high-water mark per source with a three-day
+  overlap, retries an unavailable remote host on a bounded schedule, records
+  per-source success/error/count state, alerts after 48 hours stale, rotates its
+  log, and leaves only one small staging database per source. A launchd job runs
+  at 03:00, 09:00, 15:00, and 21:00 so the remote MacBook can be caught while
+  awake. Recurring-only filters exclude Google Search results, non-video
+  YouTube pages, and account/cart/login/order utility pages without changing
+  live-extension rules. The controlled catch-up completed at 97,788 documents;
+  a repeat run added zero duplicates, and a launchd test correctly reported the
+  offline MacBook while still processing local Chrome with exit code 0.
 - [x] **Add public Google Sheets capture and fix rule precedence.**
   **Completed August 1:** the Google extractor now fetches public Sheets through
   the static visualization endpoint, stores tab-separated rows plus an offline
@@ -135,6 +146,14 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    - **Server-side ytdlp is the primary path going forward.** The extension-side
      YouTube patch (`webui/ext/src/modules/youtube.ts`) is expected to be dropped
      when a store-shipped extension replaces the custom capture side.
+   - **Timeout follow-up found August 2.** During the recurring-import test,
+     yt-dlp was incorrectly invoked for a YouTube homepage carrying query
+     parameters. `exec.CommandContext` timed out its parent, but a PyInstaller
+     descendant retained the output pipe and kept the call blocked until it was
+     terminated manually. The recurring importer now admits only actual YouTube
+     video paths, but the extractor should still terminate the whole yt-dlp
+     process group (or otherwise bound descendant/pipeline shutdown) so a bad
+     supported-media URL cannot outlive `extractors.ytdlp.options.timeout`.
 
 8. **Import Edge's ~200+ open tabs from SNSS session files.** Edge history DB has
    few rows (400 URLs over 2yr, lightly used); the open tabs live in
@@ -187,20 +206,34 @@ carry patches for; see FORK.md for the patch/rebase workflow.
     before/after reports remain under `~/Library/Application Support/HisterMonitor/`.
 
 14. **Replace the ad-hoc browser refreshes with robust recurring ingestion.**
-    The loaded launchd jobs currently cover Brave mobile/Profile 2 at 03:00 and
-    Safari at 03:30. Their last successful runs were July 22; every run from July
-    23 through August 1 aborted because SSH to the source Mac timed out. Add
-    retry/health gating and decide which local Brave/Chrome/Vivaldi/Helium
-    profiles need recurring refreshes rather than the existing one-off import
-    scripts. Evaluate a single orchestrated incremental job instead of separate
-    profile scripts; record last-success timestamps and imported/skipped/error
-    counts so stale ingestion is obvious.
-    - Decide how recurring imports handle Google and AI-search result pages
-      before enabling them. Exact-URL dedup does not collapse different search
-      query strings, while some AI-search modes may repeatedly reuse one URL.
-      Prefer a skip/normalization rule or lightweight query-history record that
-      does not recrawl Google result pages; avoid rate-limit pressure and a noisy
-      index full of near-duplicate search pages.
+    **[completed August 2, 2026]** Installed the version-controlled
+    `contrib/hister-browser-import.py` via `~/bin/hister-browser-import.py`, with
+    machine-local configuration/state in
+    `~/Library/Application Support/HisterBrowserImport/`. One launchd job,
+    `com.kester.hister-browser-import`, runs at 03:00/09:00/15:00/21:00 and
+    processes remote Brave mobile/Profile 2, remote Safari, and local Chrome.
+    It uses a lock, atomic SQLite snapshots, per-source high-water marks plus a
+    three-day overlap, three bounded SSH attempts shared by remote sources, a
+    stable `browser-import-recurring` persistent Hister crawl job, JSON
+    last-run/source state, 48-hour stale alerts, and a 10 MiB rotating log.
+    The fork adds `hister import browser --job-id` so automation selects that
+    upstream datastore job explicitly instead of relying on prompts.
+    - Google/AI Search result pages are excluded only from recurring staging;
+      no global skip rule was added, and public Docs/Sheets remain eligible.
+      Actual video URLs remain eligible, while YouTube home/search/account pages
+      are excluded. Account, login, cart, checkout, and order-history paths are
+      likewise import-only exclusions; retail product pages remain allowed.
+    - The initial 30-day catch-up staged 2,200 useful URLs and excluded 1,318
+      noisy/utility URLs. The completed persistent job recorded 680 done, 1,510
+      already-indexed skips, 151 fetch failures, and zero pending rows. Corpus
+      count rose from 97,610 to 97,788; a second overlapping run added zero.
+    - The old Brave/Safari LaunchAgents and scripts were disabled and removed.
+      Their 334 MiB host staging tree was archived as a checksum-verified 53.7
+      MiB zstd file on the Extreme SSD, and 388 MiB of duplicate container
+      staging was removed. The new cache is under 1 MiB and container staging is
+      empty after each run. The remote MacBook was offline during the final
+      launchd test; this is now visible as per-source failure state while local
+      ingestion continues normally.
 
 ## Deployment notes
 

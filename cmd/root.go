@@ -317,6 +317,10 @@ func init() {
 	importBookmarksCmd.Flags().String("browser", "", "limit autodetection to a supported browser")
 	importBookmarksCmd.Flags().String("db", "", "bookmark store path (places.sqlite, Bookmarks, or Bookmarks.json)")
 	addCrawlerBackendFlags(importBookmarksCmd)
+	// [fork] Named persistent job IDs for unattended recurring imports.
+	for _, c := range []*cobra.Command{importBrowserCmd, importBrowserHistoryCmd, importBookmarksCmd} {
+		c.Flags().String("job-id", "", "persistent import job ID to create or resume (history: browser-history-import- or browser-import-; bookmarks: browser-bookmark-import-)")
+	}
 
 	crawlQueueCmd.Flags().BoolP("count", "c", false, "only print the number of queued URLs")
 	crawlURLsCmd.Flags().String("status", "", "filter URLs by status (pending, failed, done, or skipped)")

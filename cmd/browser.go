@@ -668,7 +668,7 @@ func countBrowserImportURLs(db *sql.DB, query string, isSkip func(string) bool) 
 func beginBrowserImportJob(cmd *cobra.Command, kind string) (*browserImportJob, error) {
 	jobPrefix, defaultLabel := browserImportIdentity(kind)
 	defaultJobID := jobPrefix + time.Now().Format("2006-01-02")
-	jobID, resumeExisting, err := chooseBrowserImportJobID(defaultJobID, browserImportMatchPrefixes(kind)...)
+	jobID, resumeExisting, err := selectBrowserImportJobID(cmd, defaultJobID, browserImportMatchPrefixes(kind)...)
 	if err != nil {
 		return nil, err
 	}
@@ -728,6 +728,12 @@ func finishBrowserImportJob(cmd *cobra.Command, job *browserImportJob) {
 		return
 	}
 	if !hasURLs {
+		// [fork] Mark an empty resumed job completed so recurring imports do not
+		// leave it in the running state.
+		if err := model.UpdateCrawlJobStatus(job.id, model.CrawlJobCompleted); err != nil {
+			log.Error().Err(err).Str("job_id", job.id).Msg("Failed to complete empty browser import crawl job")
+			return
+		}
 		fmt.Println("No URLs to crawl for job:", job.id)
 		return
 	}
@@ -802,6 +808,31 @@ func ensureBrowserImportJob(job *browserImportJob, startURL string) error {
 	job.startURL = existing.StartURL
 	job.created = true
 	return nil
+}
+
+// selectBrowserImportJobID honours --job-id for unattended recurring imports and
+// falls back to the interactive job chooser. [fork]
+func selectBrowserImportJobID(cmd *cobra.Command, defaultID string, prefixes ...string) (string, bool, error) {
+	requested := ""
+	if cmd != nil && cmd.Flags().Lookup("job-id") != nil {
+		var err error
+		requested, err = cmd.Flags().GetString("job-id")
+		if err != nil {
+			return "", false, fmt.Errorf("read browser import job ID: %w", err)
+		}
+	}
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		return chooseBrowserImportJobID(defaultID, prefixes...)
+	}
+	if !hasAnyPrefix(requested, prefixes) {
+		return "", false, fmt.Errorf("browser import job ID must start with one of %q", prefixes)
+	}
+	existing, err := model.GetCrawlJob(requested)
+	if err != nil {
+		return "", false, fmt.Errorf("load browser import crawl job: %w", err)
+	}
+	return requested, existing != nil, nil
 }
 
 func chooseBrowserImportJobID(defaultID string, prefixes ...string) (string, bool, error) {
