@@ -37,17 +37,22 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   then reconsider scheduling, retries, source discovery, incremental scope, and
   last-success/error reporting as a distinct ingestion system. See operational
   item 14 below.
-- [ ] **Add public Google Sheets capture and fix rule precedence.** The existing
-  fork extractor handles Google Docs only; Sheets/Slides remain unsupported.
-  The live broad `google.*` skip rule also matches `docs.google.com`. Narrow it
-  without opening noisy Google app/search URLs, implement the public Sheets
-  export rewrite, and verify a real Sheet is indexed usefully.
-- [ ] **Audit live skip rules separately from recurring-import filters.** The
-  server's global `rules.json` currently skips Amazon, Home Depot, and several
-  other retailer domains; those rules affect ordinary extension captures as
-  well as imports. Decide which exclusions are genuinely wanted for live
-  browsing, and move import-only noise suppression into the recurring-ingestion
-  workflow instead of keeping it in the global server rule set.
+- [x] **Add public Google Sheets capture and fix rule precedence.**
+  **Completed August 1:** the Google extractor now fetches public Sheets through
+  the static visualization endpoint, stores tab-separated rows plus an offline
+  table preview, and respects the selected `gid`. Narrowed the broad Google skip
+  rule so `docs.google.com` is allowed while Search, account, Gmail, and Calendar
+  URLs remain excluded. A previously skipped public Sheet from browser history
+  indexed as 363 rows / 49,966 characters and appeared first in a live search.
+  Slides remain unsupported.
+- [x] **Audit live skip rules separately from recurring-import filters.**
+  **Completed August 1:** confirmed global rules are absolute exclusions used by
+  both the extension/server and browser imports; priority rules do not override
+  skips. Removed Amazon, Walmart, Target, eBay, Best Buy, Costco, Home Depot, and
+  Lowe's from the global set. Retained mail, financial/payment, tracking redirect,
+  Google account/search noise, and private-network protections. Import-only
+  Google/query normalization belongs in the recurring-ingestion workflow and is
+  intentionally not represented as a global rule.
 
 ## Upstream bugs (fork-patch candidates)
 
@@ -85,7 +90,7 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    retry.
 
 6. **Public Google Docs are not captured usefully.** **[patched in fork — `googledocs`
-   extractor implements the export-URL rewrite below; Sheets/Slides still open]**
+   handles Docs HTML exports and Sheets visualization tables; Slides still open]**
    `docs.google.com/document/d/…/edit` renders content entirely via JS. The http
    crawler backend gets an empty shell → Readability fails → Basic saves a stub
    with almost no text. Two workable fixes:
