@@ -96,12 +96,13 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    `browserImportCmd` (or make it persistent). **[fixed upstream in v0.17.0; the
    obsolete fork patch was dropped during rebase]**
 
-2. **`crawler.delay` is a no-op on the `http` backend (no server-side rate limiting).**
-   `CrawlerConfig.Delay` exists and is documented, but only the BiDi backend
-   implements a wait (`server/crawler/bidi.go` captureDelay). `http.go`/`crawler.go`
-   never sleep between requests, and the import/index loops don't either — so
-   `crawler.delay: N` does nothing over http. Fix: honor `Delay` in the http crawler
-   and/or the import loop.
+2. **`crawler.delay` rate-limiting audit.** **[closed August 2: existing code works]**
+   The earlier audit missed the delay in both ordinary BFS
+   (`server/crawler/crawler.go`) and persistent BFS
+   (`server/crawler/persistent.go`). It runs after robots, validator, and
+   exact-document skip checks but before the network fetch, so known URLs do not
+   incur the delay. Recurring browser imports now set a one-second delay only on
+   their `docker exec` process; live extension captures keep their current latency.
 
 3. **Extension drops captures when the server is unreachable — no retry, no offline queue.**
    `webui/ext/src/background/background.ts:513-538`: `sendPageData(…).catch(…)` just
@@ -245,6 +246,26 @@ carry patches for; see FORK.md for the patch/rebase workflow.
       empty after each run. The remote MacBook was offline during the final
       launchd test; this is now visible as per-source failure state while local
       ingestion continues normally.
+    - **Hardening pass August 2:** recurring staging now canonicalizes X
+      status/media/profile variants and YouTube video variants; strips fragments,
+      analytics, Cloudflare-challenge, and commerce-attribution parameters; and
+      excludes Google/X/retail search pages, OAuth/login/2FA/token/session URLs,
+      configured private dashboards, and retail cart actions. These remain
+      import-only decisions. The locked Brave database is captured by copying
+      `History` plus WAL/SHM into remote temporary storage; all remote snapshots
+      are now acquired before any long crawl begins. The importer records
+      candidate/normalized/collapsed/excluded/new/done/failed/skipped/pending
+      counts, alerts once after three consecutive failures, and announces
+      recovery. Nine focused tests cover the policy, accounting, quoted remote
+      paths, and successful no-op behavior.
+    - The first paced live pass completed Brave: 1,925 candidates became 874
+      distinct staged URLs after 917 Google searches and other noise were
+      excluded; 631 were newly queued, 243 were already known/rule-skipped, 450
+      fetched successfully, 76 failed at the site level, 105 skipped, and zero
+      remain pending. Safari's live snapshot was deferred because the MacBook
+      slept after the Brave crawl; the revised snapshot-first ordering will catch
+      it on the next reachable run. Local Chrome's sole remaining private URL was
+      correctly rejected by global rules and is now treated as a successful no-op.
 
 ## Deployment notes
 

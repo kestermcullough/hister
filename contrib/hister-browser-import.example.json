@@ -2,7 +2,15 @@
   "initial_lookback_days": 30,
   "job_id": "browser-import-recurring",
   "overlap_days": 3,
+  "request_delay_seconds": 1,
+  "failure_alert_after": 3,
   "stale_warning_hours": 48,
+  "excluded_hosts": [
+    "private-dashboard.example.com"
+  ],
+  "excluded_url_prefixes": [
+    "https://example.com/setup/complete"
+  ],
   "sources": [
     {
       "browser": "brave",
