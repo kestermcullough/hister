@@ -11,22 +11,26 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   **Completed August 1:** isolated one corrupt one-document segment in the
   English shard, removed only its snapshot reference, restored 87,091 English /
   97,577 total pages, and retained a verified full backup on the Extreme SSD.
-- [ ] **Finish and deploy the yt-dlp transcript fix.** The fork is now rebased on
+- [x] **Finish and deploy the yt-dlp transcript fix.** The fork is now rebased on
   upstream v0.17.0 and its checksum-verified standalone yt-dlp packaging and
   two-job concurrency limiter. The narrow writable-cookie-copy compatibility
   patch has passed the extractor tests. A disposable extension-style API test
   indexed a real captioned YouTube video with a 3,669-character transcript.
   That test also found and fixed the standalone binary's need for an executable
   256 MiB `/tmp`, plus missing extractor initialization in `hister index`.
-  Deploy and verify health before marking this complete. Do not retain the old
-  pip packaging patch; only add `--ignore-no-formats-error` if a current-binary
-  test demonstrates it is needed.
-- [ ] **Reconcile the fork with upstream.** The complete 13-commit fork has been
+  **Completed August 1:** deployed v0.17.0 and reindexed an existing live
+  YouTube document through the fixed CLI path; its stored text now contains the
+  transcript plus duration/uploader metadata. Hister remained healthy with zero
+  restarts. The old pip packaging patch and `--ignore-no-formats-error` were not
+  retained.
+- [x] **Reconcile the fork with upstream.** The complete 13-commit fork has been
   rebased in an isolated worktree onto upstream v0.17.0. Review storage
   migrations and fork-patch overlap, run the complete test/build checks, and
   deploy only after validation against the backed-up data model. A disposable
   migration of all 97,577 recovered documents and its restart both passed with
-  the count unchanged; final deployment remains.
+  the count unchanged. **Completed August 1:** deployed the full v0.17.0 update;
+  the live one-time migration completed across every shard, search returned
+  results in the browser, and normal capture continued at 97,588 documents.
 - [ ] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
   health monitoring/alerting. See operational item 13 below.
 - [ ] **Design robust recurring browser imports.** Restore the existing jobs,
