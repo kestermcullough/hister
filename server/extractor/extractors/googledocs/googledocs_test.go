@@ -21,7 +21,8 @@ func TestMatchGoogleDocsURLs(t *testing.T) {
 		{"https://docs.google.com/document/d/1AbC-dEf_123/view", true},
 		{"https://docs.google.com/document/d/1AbC-dEf_123", true},
 		{"https://docs.google.com/document/u/0/d/1AbC-dEf_123/edit", true},
-		{"https://docs.google.com/spreadsheets/d/1AbC/edit", false}, // sheets: different export path
+		{"https://docs.google.com/spreadsheets/d/1AbC/edit", true},
+		{"https://docs.google.com/spreadsheets/u/1/d/1AbC/edit#gid=42", true},
 		{"https://docs.google.com/presentation/d/1AbC/edit", false},
 		{"https://docs.google.com/document/", false},
 		{"https://docs.google.com/", false},
@@ -32,6 +33,24 @@ func TestMatchGoogleDocsURLs(t *testing.T) {
 		d := &sdk.Document{URL: tc.url}
 		if got := e.Match(d); got != tc.want {
 			t.Errorf("Match(%q) = %v, want %v", tc.url, got, tc.want)
+		}
+	}
+}
+
+func TestSheetIDAndGID(t *testing.T) {
+	cases := []struct {
+		url, id, gid string
+	}{
+		{"https://docs.google.com/spreadsheets/d/abc_123/edit#gid=42", "abc_123", "42"},
+		{"https://docs.google.com/spreadsheets/u/0/d/xyz/edit?gid=7", "xyz", "7"},
+		{"https://docs.google.com/document/d/abc/edit", "", ""},
+	}
+	for _, tc := range cases {
+		if got := sheetID(tc.url); got != tc.id {
+			t.Errorf("sheetID(%q) = %q, want %q", tc.url, got, tc.id)
+		}
+		if got := sheetGID(tc.url); got != tc.gid {
+			t.Errorf("sheetGID(%q) = %q, want %q", tc.url, got, tc.gid)
 		}
 	}
 }
@@ -64,6 +83,11 @@ const exportFixture = `<html><head><meta content="text/html; charset=UTF-8" http
 <p class="c0"><span class="c1"></span></p>
 </body></html>`
 
+const sheetFixture = `<html><head><title>Quarterly Budget</title></head><body>
+<table><thead><tr><th>Category</th><th>Amount</th></tr></thead><tbody>
+<tr><td>Hardware</td><td>$1,200</td></tr><tr><td>Software</td><td>$300</td></tr>
+</tbody></table></body></html>`
+
 func TestExportContent(t *testing.T) {
 	title, text, bodyHTML, err := exportContent(exportFixture)
 	if err != nil {
@@ -92,6 +116,24 @@ func TestExportContent(t *testing.T) {
 	}
 }
 
+func TestSheetContent(t *testing.T) {
+	title, text, bodyHTML, err := sheetContent(sheetFixture)
+	if err != nil {
+		t.Fatalf("sheetContent: %v", err)
+	}
+	if title != "Quarterly Budget" {
+		t.Errorf("title = %q, want Quarterly Budget", title)
+	}
+	for _, want := range []string{"Category\tAmount", "Hardware\t$1,200", "Software\t$300"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; text = %q", want, text)
+		}
+	}
+	if !strings.Contains(bodyHTML, "<table") {
+		t.Errorf("bodyHTML missing table: %q", bodyHTML)
+	}
+}
+
 // newExportServer returns a test server that serves the fixture for public
 // document IDs and simulates the login redirect for anything else.
 func newExportServer(t *testing.T, publicID string) *httptest.Server {
@@ -103,12 +145,41 @@ func newExportServer(t *testing.T, publicID string) *httptest.Server {
 			_, _ = w.Write([]byte(exportFixture))
 			return
 		}
+		if r.URL.Path == fmt.Sprintf("/spreadsheets/d/%s/gviz/tq", publicID) && r.URL.Query().Get("tqx") == "out:html" {
+			w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+			_, _ = w.Write([]byte(sheetFixture))
+			return
+		}
 		// Private/unknown docs: Google answers the export URL with a redirect
 		// chain ending on a 200 login page; a plain non-200 covers the same
 		// "not public" branch without needing a second host in the test.
 		http.Error(w, "login required", http.StatusForbidden)
 	})
 	return httptest.NewServer(mux)
+}
+
+func TestExtractPublicSheet(t *testing.T) {
+	srv := newExportServer(t, "sheet123")
+	defer srv.Close()
+
+	e := &GoogleDocsExtractor{base: srv.URL}
+	d := &sdk.Document{
+		URL:  "https://docs.google.com/spreadsheets/d/sheet123/edit#gid=42",
+		HTML: "<html><body><script>spa shell</script></body></html>",
+	}
+	result := e.Extract(d)
+	if result.Err() != nil {
+		t.Fatalf("Extract: %v", result.Err())
+	}
+	if result.Decision() != sdk.ExtractorSuccess {
+		t.Fatalf("decision = %v, want success", result.Decision())
+	}
+	if d.Title != "Quarterly Budget" || !strings.Contains(d.Text, "Hardware\t$1,200") {
+		t.Errorf("unexpected extracted sheet: title=%q text=%q", d.Title, d.Text)
+	}
+	if d.Metadata["site_name"] != "Google Sheets" {
+		t.Errorf("site_name = %v, want Google Sheets", d.Metadata["site_name"])
+	}
 }
 
 func TestExtractPublicDoc(t *testing.T) {
