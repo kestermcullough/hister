@@ -23,7 +23,10 @@ services:
     volumes:
       - hister_data:/hister/data
     tmpfs:
-      - /tmp:noexec,nosuid,size=64m
+      # The standalone yt-dlp executable is a PyInstaller bundle. It extracts
+      # native libraries into /tmp and needs both executable space and enough
+      # room for the unpacked runtime.
+      - /tmp:exec,nosuid,size=256m
     environment:
       HISTER__SERVER__ADDRESS: 0.0.0.0:4433
       HISTER__SERVER__BASE_URL: http://localhost:4433

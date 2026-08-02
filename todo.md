@@ -14,14 +14,19 @@ carry patches for; see FORK.md for the patch/rebase workflow.
 - [ ] **Finish and deploy the yt-dlp transcript fix.** The fork is now rebased on
   upstream v0.17.0 and its checksum-verified standalone yt-dlp packaging and
   two-job concurrency limiter. The narrow writable-cookie-copy compatibility
-  patch has passed the extractor tests. Build the complete image, then prove a
-  real YouTube transcript is present in the indexed document/preview before
-  marking this complete. Do not retain the old pip packaging patch; only add
-  `--ignore-no-formats-error` if a current-binary test demonstrates it is needed.
+  patch has passed the extractor tests. A disposable extension-style API test
+  indexed a real captioned YouTube video with a 3,669-character transcript.
+  That test also found and fixed the standalone binary's need for an executable
+  256 MiB `/tmp`, plus missing extractor initialization in `hister index`.
+  Deploy and verify health before marking this complete. Do not retain the old
+  pip packaging patch; only add `--ignore-no-formats-error` if a current-binary
+  test demonstrates it is needed.
 - [ ] **Reconcile the fork with upstream.** The complete 13-commit fork has been
   rebased in an isolated worktree onto upstream v0.17.0. Review storage
   migrations and fork-patch overlap, run the complete test/build checks, and
-  deploy only after validation against the backed-up data model.
+  deploy only after validation against the backed-up data model. A disposable
+  migration of all 97,577 recovered documents and its restart both passed with
+  the count unchanged; final deployment remains.
 - [ ] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
   health monitoring/alerting. See operational item 13 below.
 - [ ] **Design robust recurring browser imports.** Restore the existing jobs,

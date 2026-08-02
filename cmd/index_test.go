@@ -534,3 +534,26 @@ func TestIndexInputFlags(t *testing.T) {
 		t.Fatal("--url-list should remain as a hidden deprecated alias")
 	}
 }
+
+func TestIndexPreRunInitializesConfiguredExtractors(t *testing.T) {
+	originalCfg := cfg
+	t.Cleanup(func() {
+		cfg = originalCfg
+		if err := extractor.Init(nil); err != nil {
+			t.Fatalf("restore extractor defaults: %v", err)
+		}
+	})
+
+	cfg = &config.Config{Extractors: map[string]*config.Extractor{
+		"ytdlp": {Enable: true},
+	}}
+	cmd := newIndexTestCommand()
+	indexCmd.PreRun(cmd, []string{"https://www.youtube.com/watch?v=example"})
+
+	for _, info := range extractor.ListEnabled() {
+		if info.Name == "Ytdlp" {
+			return
+		}
+	}
+	t.Fatal("index command did not initialize the configured Ytdlp extractor")
+}
