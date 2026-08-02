@@ -32,7 +32,13 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   the live one-time migration completed across every shard, search returned
   results in the browser, and normal capture continued at 97,588 documents.
 - [ ] **Verify boot recovery.** Confirm Docker and Hister start after boot and add
-  health monitoring/alerting. See operational item 13 below.
+  health monitoring/alerting. See operational item 13 below. **August 2:** Docker
+  Desktop `AutoStart` is enabled; Hister and Defuddle both use
+  `restart: unless-stopped`. Installed a read-only launchd health monitor that
+  checks Docker, both container health states, restart counts, and the Hister
+  HTTP endpoint every minute. It alerts after three consecutive failures and on
+  recovery; simulated failure/recovery and macOS notification tests passed.
+  A controlled Mac reboot and post-login verification remain.
 - [ ] **Design robust recurring browser imports.** Restore the existing jobs,
   then reconsider scheduling, retries, source discovery, incremental scope, and
   last-success/error reporting as a distinct ingestion system. See operational
@@ -162,9 +168,16 @@ carry patches for; see FORK.md for the patch/rebase workflow.
 
 13. **Verify boot recovery and add a visible health check/alert.**
     `restart: unless-stopped` starts the container once Docker is running, but it
-    cannot recover from an application crash loop. Confirm Docker Desktop starts
-    at login/boot, test Hister after a controlled reboot, and surface an alert
-    when `http://localhost:4433/` is unavailable or the container is unhealthy.
+    cannot recover from an application crash loop. Docker Desktop `AutoStart`
+    and both container restart policies are confirmed. The installed
+    `com.kester.hister-health-monitor` LaunchAgent runs every 60 seconds and
+    checks Docker, Hister, Defuddle, restart counts, and
+    `http://localhost:4433/`; it waits for three consecutive failures before a
+    desktop alert and notifies on recovery. Script:
+    `~/bin/hister-health-monitor.sh`; log:
+    `~/Library/Logs/HisterHealthMonitor.log`. Simulated failure/recovery and
+    notification tests passed August 2. Remaining: controlled reboot and
+    post-login verification.
 
 14. **Replace the ad-hoc browser refreshes with robust recurring ingestion.**
     The loaded launchd jobs currently cover Brave mobile/Profile 2 at 03:00 and
