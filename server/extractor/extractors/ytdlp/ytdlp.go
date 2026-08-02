@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -225,10 +224,10 @@ func (e *YtdlpExtractor) Match(d *sdk.Document) bool {
 	if !matched {
 		return false
 	}
-	// Reject bare homepages — yt-dlp cannot extract anything from a site root
-	// with no path or query parameters (e.g. "https://www.youtube.com/").
+	// Reject bare homepages — query parameters on a site root do not turn it
+	// into an extractable video (e.g. "https://www.youtube.com/?app=desktop").
 	path := strings.TrimRight(u.Path, "/")
-	if path == "" && u.RawQuery == "" {
+	if path == "" {
 		return false
 	}
 	return true
@@ -312,7 +311,7 @@ func (e *YtdlpExtractor) fetchInfo(ctx context.Context, videoURL string) (*video
 		defer cancel()
 
 		// #nosec G204 -- binary path and args are admin-configured, not user input.
-		cmd := exec.CommandContext(ctx, e.binary(), args...)
+		cmd := managedCommandContext(ctx, e.binary(), args...)
 		cmd.Stderr = &stderr
 		log.Debug().Str("args", strings.Join(cmd.Args, " ")).Msg("yt-dlp executing")
 		out, err = cmd.Output()

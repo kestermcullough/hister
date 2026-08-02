@@ -244,6 +244,7 @@ func TestMatch(t *testing.T) {
 		{"https://archive.org/details/something", false},
 		{"https://videos.peertube.example.com/w/abc", true},
 		{"https://www.youtube.com/", false},
+		{"https://www.youtube.com/?app=desktop", false},
 		{"https://www.youtube.com", false},
 		{"https://youtube.com/", false},
 		{"https://vimeo.com/", false},

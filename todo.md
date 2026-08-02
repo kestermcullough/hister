@@ -22,7 +22,18 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   YouTube document through the fixed CLI path; its stored text now contains the
   transcript plus duration/uploader metadata. Hister remained healthy with zero
   restarts. The old pip packaging patch and `--ignore-no-formats-error` were not
-  retained.
+  retained. **Timeout hardening completed August 2:** both metadata and subtitle
+  yt-dlp commands now run in an isolated process group and kill the entire tree
+  at deadline, with a one-second final pipe-drain bound. A regression test
+  reproduces a descendant retaining stdout and proves that it neither blocks nor
+  survives cancellation. Bare media-site homepages are also rejected even when
+  they carry query parameters. The release is deployed with a dedicated rollback
+  image; a live forced refresh returned within 4.46 seconds and left no yt-dlp
+  descendants. The refreshed document contains 3,006 characters including its
+  transcript and uploader metadata, and a CLI search for a transcript-only
+  phrase returns the video. (`search -F text` currently displays an empty field
+  because that CLI path does not request `include_text`; the indexed text and
+  full-text search are working.)
 - [x] **Reconcile the fork with upstream.** The complete 13-commit fork has been
   rebased in an isolated worktree onto upstream v0.17.0. Review storage
   migrations and fork-patch overlap, run the complete test/build checks, and
@@ -146,14 +157,14 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    - **Server-side ytdlp is the primary path going forward.** The extension-side
      YouTube patch (`webui/ext/src/modules/youtube.ts`) is expected to be dropped
      when a store-shipped extension replaces the custom capture side.
-   - **Timeout follow-up found August 2.** During the recurring-import test,
+   - **Timeout follow-up found and fixed August 2.** During the recurring-import test,
      yt-dlp was incorrectly invoked for a YouTube homepage carrying query
      parameters. `exec.CommandContext` timed out its parent, but a PyInstaller
      descendant retained the output pipe and kept the call blocked until it was
-     terminated manually. The recurring importer now admits only actual YouTube
-     video paths, but the extractor should still terminate the whole yt-dlp
-     process group (or otherwise bound descendant/pipeline shutdown) so a bad
-     supported-media URL cannot outlive `extractors.ytdlp.options.timeout`.
+     terminated manually. The recurring importer admits only actual YouTube
+     video paths; the extractor now rejects queried homepages and applies the
+     configured deadline to the complete yt-dlp process tree on Unix and Windows.
+     The deterministic child-pipe regression test and live deployment both pass.
 
 8. **Import Edge's ~200+ open tabs from SNSS session files.** Edge history DB has
    few rows (400 URLs over 2yr, lightly used); the open tabs live in

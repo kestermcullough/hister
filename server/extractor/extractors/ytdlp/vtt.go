@@ -3,7 +3,6 @@ package ytdlp
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -81,7 +80,7 @@ func downloadSubtitleForLang(ctx context.Context, e *YtdlpExtractor, info *video
 		defer cancel()
 
 		// #nosec G204 -- binary path and args are admin-configured, not user input.
-		cmd := exec.CommandContext(ctx, e.binary(), args...)
+		cmd := managedCommandContext(ctx, e.binary(), args...)
 		return cmd.Run()
 	})
 	if err != nil {
