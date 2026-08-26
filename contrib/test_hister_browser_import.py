@@ -4,6 +4,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).with_name("hister-browser-import.py")
@@ -97,6 +98,45 @@ class StageAccountingTest(unittest.TestCase):
 
 
 class MonitoringAndStatsTest(unittest.TestCase):
+    def test_local_sqlite_backup_is_valid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.sqlite"
+            destination = Path(directory) / "snapshot.sqlite"
+            database = sqlite3.connect(str(source))
+            database.execute("CREATE TABLE pages (url TEXT)")
+            database.execute("INSERT INTO pages VALUES ('https://example.com')")
+            database.commit()
+            try:
+                IMPORTER.sqlite_backup(source, destination)
+            finally:
+                database.close()
+            snapshot = sqlite3.connect("file:{}?mode=ro".format(destination), uri=True)
+            try:
+                self.assertEqual(
+                    snapshot.execute("SELECT url FROM pages").fetchone()[0],
+                    "https://example.com",
+                )
+                self.assertEqual(snapshot.execute("PRAGMA quick_check").fetchone()[0], "ok")
+            finally:
+                snapshot.close()
+
+    def test_local_sqlite_backup_timeout_is_bounded_and_cleans_partial_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.sqlite"
+            destination = Path(directory) / "snapshot.sqlite"
+            source.touch()
+            incoming = destination.with_suffix(destination.suffix + ".incoming")
+
+            def time_out(*args, **kwargs):
+                incoming.write_bytes(b"partial")
+                raise IMPORTER.subprocess.TimeoutExpired(args[0], kwargs.get("timeout", 30))
+
+            with mock.patch.object(IMPORTER.subprocess, "run", side_effect=time_out):
+                with self.assertRaisesRegex(RuntimeError, "timed out after 30 seconds"):
+                    IMPORTER.sqlite_backup(source, destination)
+            self.assertFalse(destination.exists())
+            self.assertFalse(incoming.exists())
+
     def test_remote_paths_with_spaces_are_shell_quoted(self):
         source = "/Users/example/Library/Application Support/Browser/History"
         remote_tmp = "/tmp/hister.sqlite"

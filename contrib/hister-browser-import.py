@@ -59,7 +59,7 @@ done
 copy_dir=$(/usr/bin/mktemp -d /tmp/hister-browser-copy.XXXXXX)
 trap '/bin/rm -rf "$copy_dir"' EXIT
 /bin/cp "$src" "$copy_dir/History"
-for suffix in -wal -shm; do
+for suffix in -wal -shm -journal; do
     if test -f "$src$suffix"; then
         /bin/cp "$src$suffix" "$copy_dir/History$suffix"
     fi
@@ -290,15 +290,38 @@ def source_cutoff(source_state: dict, config: dict, now_epoch: int) -> int:
 
 
 def sqlite_backup(source: Path, destination: Path) -> None:
-    if destination.exists():
-        destination.unlink()
-    src = sqlite3.connect("file:{}?mode=ro".format(source), uri=True, timeout=30)
-    dst = sqlite3.connect(str(destination))
+    """Create a bounded, lock-aware snapshot of a live browser database.
+
+    Python's sqlite3.Connection.backup() can wait forever while Chrome holds an
+    exclusive lock. Reuse the remote snapshot routine locally: it first retries
+    SQLite's online backup, then falls back to a private database+sidecar copy.
+    The outer timeout is deliberately longer than the bounded retries in the
+    shell helper, but guarantees that a browser can never wedge the scheduler.
+    """
+    incoming = destination.with_suffix(destination.suffix + ".incoming")
     try:
-        src.backup(dst)
+        for path in (destination, incoming):
+            if path.exists():
+                path.unlink()
+        result = subprocess.run(
+            ["/bin/sh", "-s", "--", str(source), str(incoming)],
+            input=REMOTE_BACKUP_SCRIPT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        if result.returncode != 0 or not incoming.exists() or incoming.stat().st_size == 0:
+            raise RuntimeError(
+                "local sqlite backup failed: {}".format(
+                    result.stderr.strip() or "status {}".format(result.returncode)
+                )
+            )
+        os.replace(str(incoming), str(destination))
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("local sqlite backup timed out after 30 seconds") from exc
     finally:
-        dst.close()
-        src.close()
+        if incoming.exists():
+            incoming.unlink()
 
 
 def probe_remote(host: str, logger: Logger) -> bool:
