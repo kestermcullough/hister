@@ -3,7 +3,40 @@
 Working roadmap for this fork of asciimoo/hister. Bugs are upstream issues we can
 carry patches for; see FORK.md for the patch/rebase workflow.
 
-## Today — priority (August 1, 2026)
+## Current priority (August 31, 2026)
+
+- [x] **Back up and deploy the yt-dlp private-runtime-temp fix on v0.17.0.**
+  **Completed August 31:** created a 6.8 GiB checksum-verified full-volume
+  backup on the Extreme SSD and preserved the previous image as
+  `hister:fork-pre-ytdlp-tmpfix`. The initial backup attempt exposed Docker's
+  default log driver duplicating the tar stream into `Docker.raw`; the failed
+  partial archive was removed and the successful retry used
+  `--log-driver=none`, leaving internal free space stable at 27 GiB. The
+  deployed extractor gives each metadata/subtitle invocation a private runtime
+  directory and removes it after success or timeout. Success and forced-timeout
+  regression tests pass. A live captioned-video refresh stored 24,531
+  characters, a transcript-only phrase returned that video first in CLI search,
+  `/tmp` remained empty, and Hister stayed healthy at 104,804 documents / 19
+  rules with zero restarts.
+- [ ] **Stage the v0.18.0 upgrade in an isolated worktree and disposable data
+  copy.** Upstream v0.18.0 is a large extractor/API/UI migration, not a patch
+  release. Port the fork patches onto its extractor SDK, test its data migration
+  and session reauthentication, and do not deploy over the live volume until the
+  104,804-document corpus passes restart/search checks. Current upstream master
+  also has native Safari history import, but it is newer than v0.18.0; evaluate
+  it separately instead of deploying an unreleased branch.
+- [ ] **Reconcile the public fork remote.** Local `master` contains the rebased
+  v0.17 fork and is 225 commits ahead / 12 commits behind `origin/master` because
+  the remote still represents the old pre-rebase history. Review the exact push
+  target and obtain explicit approval before replacing remote history.
+- [ ] **Monitor the next scheduled recurring-browser run.** The August 31 15:00
+  run completed all three sources with one-second request pacing and zero
+  pending URLs. Confirm another unattended run and its stale/failure alert state.
+- [ ] **Plan extension offline capture recovery.** The live extension still has
+  no durable queue when Hister is unavailable; this is distinct from recurring
+  browser-history recovery.
+
+## Completed recovery and integration work (August 1–31, 2026)
 
 - [x] **Restore Hister from the post-power-blip crash loop without losing the
   indexed corpus.** Back up the full `hister_data` volume first, isolate the
@@ -85,6 +118,11 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   Google account/search noise, and private-network protections. Import-only
   Google/query normalization belongs in the recurring-ingestion workflow and is
   intentionally not represented as a global rule.
+  **Follow-up completed August 31:** split the combined Google Search/redirect
+  rule. Live Google Search pages are now eligible for capture, while Google
+  redirect URLs, accounts, Gmail, Calendar, financial services, and private
+  networks remain blocked. Recurring imports continue to suppress Google and
+  AI-search noise independently.
 
 ## Upstream bugs (fork-patch candidates)
 
@@ -110,12 +148,14 @@ carry patches for; see FORK.md for the patch/rebase workflow.
    reconnect. Anything browsed while Hister is down is silently lost. Fix: queue
    failed captures locally and flush on next successful add / reconnect.
 
-4. **`import-browser` has no date filter.**
+4. **`import-browser` has no date filter.** **[fixed upstream in v0.18.0]**
    Only a commented-out TODO at `cmd/browser.go:124-129`. Can't scope by recency
    natively — has to be worked around by pre-filtering the staged SQLite DB with
    `sqlite3 <db> "DELETE FROM urls WHERE last_visit_time < <cutoff>"`. Fix: add
    `--after`/`--since` (Chromium `last_visit_time` is WebKit epoch µs; Firefox
-   `last_visit_date` is Unix epoch µs).
+   `last_visit_date` is Unix epoch µs). Upstream added `--start-date`; adopt it
+   when the fork moves to v0.18.0, then reassess how much staging SQL remains
+   necessary.
 
 5. *(minor)* **`import-browser` silently skips URLs on transient errors.**
    `cmd/browser.go:278-282`: a failed `DocumentExists` just increments `skipped`;
@@ -165,7 +205,15 @@ carry patches for; see FORK.md for the patch/rebase workflow.
      terminated manually. The recurring importer admits only actual YouTube
      video paths; the extractor now rejects queried homepages and applies the
      configured deadline to the complete yt-dlp process tree on Unix and Windows.
-     The deterministic child-pipe regression test and live deployment both pass.
+   The deterministic child-pipe regression test and live deployment both pass.
+   - **Runtime-temp follow-up August 26:** repeated live imports eventually made
+     the standalone PyInstaller binary fail while decompressing native modules.
+     The deployed binary had previously worked, pointing to abandoned `_MEI`
+     extraction trees filling the 256 MiB tmpfs after forced timeouts. The
+     prepared fix gives every metadata/subtitle command its own `TMPDIR` and
+     removes it after success, failure, or process-tree timeout. Unit and live
+     transcript tests plus a fresh data-volume backup are required before
+     deployment.
 
 8. **Import Edge's ~200+ open tabs from SNSS session files.** Edge history DB has
    few rows (400 URLs over 2yr, lightly used); the open tabs live in
@@ -266,6 +314,21 @@ carry patches for; see FORK.md for the patch/rebase workflow.
       slept after the Brave crawl; the revised snapshot-first ordering will catch
       it on the next reachable run. Local Chrome's sole remaining private URL was
       correctly rejected by global rules and is now treated as a successful no-op.
+    - **Follow-up August 26–31:** a local Chrome online backup remained blocked
+      for more than ten hours because Python's SQLite backup API has no effective
+      outer deadline while Chrome holds an exclusive lock. The first correction
+      bounded it at 30 seconds, preventing another scheduler wedge, but its five
+      futile online retries consumed the deadline before fallback on August 31.
+      Local Chrome now goes directly to a private database/WAL/SHM/journal copy,
+      then creates and integrity-checks a clean snapshot. Eleven focused tests
+      pass; an actual locked-Chrome snapshot containing 141 URLs completed with
+      `PRAGMA quick_check=ok` in under one second. The old process is gone and
+      launchd is idle after normal exit. The 15:00 scheduled run then completed
+      all three sources successfully: Safari had no new URLs, Brave indexed 8
+      with one site-level failure, and local Chrome indexed 21 with 19 site-level
+      failures (primarily non-HTML GitHub API/raw-file responses, 404s, and one
+      429). All queues reached zero pending, one-second request pacing was active,
+      and no importer/source failure was recorded.
 
 ## Deployment notes
 
