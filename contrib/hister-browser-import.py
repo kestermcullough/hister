@@ -69,6 +69,28 @@ rm -f "$dest"
 test -s "$dest"
 """
 
+# Local Chrome is known to retain an exclusive lock for its whole lifetime.
+# Do not spend most of the outer deadline retrying an online backup that cannot
+# succeed: copy the database and recovery sidecars immediately, then have SQLite
+# produce and integrity-check a clean snapshot from that stable private copy.
+LOCAL_BACKUP_SCRIPT = r"""
+set -eu
+src=$1
+dest=$2
+copy_dir=$(/usr/bin/mktemp -d /tmp/hister-browser-copy.XXXXXX)
+trap '/bin/rm -rf "$copy_dir"' EXIT
+/bin/cp "$src" "$copy_dir/History"
+for suffix in -wal -shm -journal; do
+    if test -f "$src$suffix"; then
+        /bin/cp "$src$suffix" "$copy_dir/History$suffix"
+    fi
+done
+rm -f "$dest"
+/usr/bin/sqlite3 "$copy_dir/History" ".timeout 5000" ".backup $dest"
+test -s "$dest"
+test "$(/usr/bin/sqlite3 "$dest" 'PRAGMA quick_check;')" = "ok"
+"""
+
 X_STATUS_RE = re.compile(r"^/([A-Za-z0-9_]+)/status/([0-9]+)(?:/.*)?$")
 X_PROFILE_RE = re.compile(r"^/([A-Za-z0-9_]+)(?:/(?:photo|with_replies))?/?$")
 X_UTILITY_ROOTS = {
@@ -293,10 +315,9 @@ def sqlite_backup(source: Path, destination: Path) -> None:
     """Create a bounded, lock-aware snapshot of a live browser database.
 
     Python's sqlite3.Connection.backup() can wait forever while Chrome holds an
-    exclusive lock. Reuse the remote snapshot routine locally: it first retries
-    SQLite's online backup, then falls back to a private database+sidecar copy.
-    The outer timeout is deliberately longer than the bounded retries in the
-    shell helper, but guarantees that a browser can never wedge the scheduler.
+    exclusive lock. Snapshot the database and recovery sidecars to a private
+    directory first, then make and integrity-check a clean SQLite backup there.
+    The outer timeout guarantees that a browser can never wedge the scheduler.
     """
     incoming = destination.with_suffix(destination.suffix + ".incoming")
     try:
@@ -305,7 +326,7 @@ def sqlite_backup(source: Path, destination: Path) -> None:
                 path.unlink()
         result = subprocess.run(
             ["/bin/sh", "-s", "--", str(source), str(incoming)],
-            input=REMOTE_BACKUP_SCRIPT,
+            input=LOCAL_BACKUP_SCRIPT,
             text=True,
             capture_output=True,
             timeout=30,
