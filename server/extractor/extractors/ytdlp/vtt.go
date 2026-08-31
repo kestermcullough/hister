@@ -81,6 +81,7 @@ func downloadSubtitleForLang(ctx context.Context, e *YtdlpExtractor, info *video
 
 		// #nosec G204 -- binary path and args are admin-configured, not user input.
 		cmd := managedCommandContext(ctx, e.binary(), args...)
+		setCommandTempDir(cmd, dir)
 		return cmd.Run()
 	})
 	if err != nil {

@@ -312,6 +312,7 @@ func (e *YtdlpExtractor) fetchInfo(ctx context.Context, videoURL string) (*video
 
 		// #nosec G204 -- binary path and args are admin-configured, not user input.
 		cmd := managedCommandContext(ctx, e.binary(), args...)
+		setCommandTempDir(cmd, dir)
 		cmd.Stderr = &stderr
 		log.Debug().Str("args", strings.Join(cmd.Args, " ")).Msg("yt-dlp executing")
 		out, err = cmd.Output()

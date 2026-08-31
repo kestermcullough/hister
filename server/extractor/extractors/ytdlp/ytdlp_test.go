@@ -646,6 +646,100 @@ func TestExtractFailure(t *testing.T) {
 	}
 }
 
+func TestFetchInfoUsesAndCleansPrivateRuntimeTempDir(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "used-temp-dir")
+	t.Setenv("TMPDIR", root)
+	t.Setenv("YTDLP_TEST_MARKER", marker)
+
+	binDir := t.TempDir()
+	bin := filepath.Join(binDir, "fake-yt-dlp")
+	script := `#!/bin/sh
+printf '%s' "$TMPDIR" > "$YTDLP_TEST_MARKER"
+mkdir -p "$TMPDIR/_MEI-test"
+printf '%s\n' '{"id":"test","title":"test","webpage_url":"https://example.com/test"}'
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	e := &YtdlpExtractor{}
+	if err := e.SetConfig(&config.Extractor{
+		Enable: true,
+		Options: map[string]any{
+			"binary":              bin,
+			"timeout":             5,
+			"max_concurrent_jobs": 1,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.fetchInfo("https://example.com/test"); err != nil {
+		t.Fatalf("fetchInfo returned error: %v", err)
+	}
+
+	usedBytes, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	used := string(usedBytes)
+	if filepath.Dir(used) != root || !strings.HasPrefix(filepath.Base(used), "hister-ytdlp-") {
+		t.Fatalf("yt-dlp TMPDIR = %q, want private directory below %q", used, root)
+	}
+	if _, err := os.Stat(used); !os.IsNotExist(err) {
+		t.Fatalf("yt-dlp temporary directory still exists after command: %q (error %v)", used, err)
+	}
+}
+
+func TestFetchInfoCleansPrivateRuntimeTempDirAfterTimeout(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "used-timeout-temp-dir")
+	t.Setenv("TMPDIR", root)
+	t.Setenv("YTDLP_TEST_MARKER", marker)
+
+	binDir := t.TempDir()
+	bin := filepath.Join(binDir, "fake-yt-dlp")
+	script := `#!/bin/sh
+printf '%s' "$TMPDIR" > "$YTDLP_TEST_MARKER"
+mkdir -p "$TMPDIR/_MEI-timeout-test"
+sleep 10
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	e := &YtdlpExtractor{}
+	if err := e.SetConfig(&config.Extractor{
+		Enable: true,
+		Options: map[string]any{
+			"binary":              bin,
+			"timeout":             1,
+			"max_concurrent_jobs": 1,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	if _, err := e.fetchInfo("https://example.com/test"); err == nil {
+		t.Fatal("fetchInfo unexpectedly succeeded")
+	}
+	if elapsed := time.Since(started); elapsed > 2500*time.Millisecond {
+		t.Fatalf("fetchInfo returned after %s, expected bounded timeout", elapsed)
+	}
+
+	usedBytes, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	used := string(usedBytes)
+	if filepath.Dir(used) != root || !strings.HasPrefix(filepath.Base(used), "hister-ytdlp-") {
+		t.Fatalf("yt-dlp TMPDIR = %q, want private directory below %q", used, root)
+	}
+	if _, err := os.Stat(used); !os.IsNotExist(err) {
+		t.Fatalf("timed-out yt-dlp temporary directory still exists: %q (error %v)", used, err)
+	}
+}
+
 func TestConfig(t *testing.T) {
 	e := &YtdlpExtractor{}
 
