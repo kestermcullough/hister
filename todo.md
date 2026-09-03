@@ -3,7 +3,7 @@
 Working roadmap for this fork of asciimoo/hister. Bugs are upstream issues we can
 carry patches for; see FORK.md for the patch/rebase workflow.
 
-## Current priority (August 31, 2026)
+## Current priority (September 2, 2026)
 
 - [x] **Back up and deploy the yt-dlp private-runtime-temp fix on v0.17.0.**
   **Completed August 31:** created a 6.8 GiB checksum-verified full-volume
@@ -18,13 +18,19 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   characters, a transcript-only phrase returned that video first in CLI search,
   `/tmp` remained empty, and Hister stayed healthy at 104,804 documents / 19
   rules with zero restarts.
-- [ ] **Stage the v0.18.0 upgrade in an isolated worktree and disposable data
-  copy.** Upstream v0.18.0 is a large extractor/API/UI migration, not a patch
-  release. Port the fork patches onto its extractor SDK, test its data migration
-  and session reauthentication, and do not deploy over the live volume until the
-  104,804-document corpus passes restart/search checks. Current upstream master
-  also has native Safari history import, but it is newer than v0.18.0; evaluate
-  it separately instead of deploying an unreleased branch.
+- [x] **Stage the v0.18.0 upgrade in an isolated worktree and disposable data
+  copy.** **Completed September 2:** rebased all 27 fork commits onto the v0.18.0
+  extractor SDK in an Extreme SSD worktree. The UI build, all Go packages, 11
+  recurring-import tests, arm64 image build, Google Docs/Sheets/Defuddle focused
+  tests, and yt-dlp timeout/temp cleanup tests pass. A verified backup restored
+  into a disposable SSD corpus migrated to database version 2 / index version 8,
+  retained all 104,804 indexed URLs, passed SQLite integrity, survived a cold
+  restart with zero restart-loop count, and returned search results. A YouTube
+  `text:Transcript` query returned saved videos with transcript text. Testing
+  also found and fixed v0.18 CLI JSON's trailing comma and made `-F text` request
+  stored text. The live v0.17 volume/image remain untouched. Current upstream
+  master also has native Safari history import, but it is newer than v0.18.0;
+  evaluate it separately instead of deploying an unreleased branch.
 - [ ] **Reconcile the public fork remote.** Local `master` contains the rebased
   v0.17 fork and is 225 commits ahead / 12 commits behind `origin/master` because
   the remote still represents the old pre-rebase history. Review the exact push
@@ -65,8 +71,9 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   descendants. The refreshed document contains 3,006 characters including its
   transcript and uploader metadata, and a CLI search for a transcript-only
   phrase returns the video. (`search -F text` currently displays an empty field
-  because that CLI path does not request `include_text`; the indexed text and
-  full-text search are working.)
+  because that v0.17 CLI path does not request `include_text`; the indexed text
+  and full-text search are working. The staged v0.18 fork fixes this CLI display
+  bug and its invalid trailing-comma JSON output.)
 - [x] **Reconcile the fork with upstream.** The complete 13-commit fork has been
   rebased in an isolated worktree onto upstream v0.17.0. Review storage
   migrations and fork-patch overlap, run the complete test/build checks, and

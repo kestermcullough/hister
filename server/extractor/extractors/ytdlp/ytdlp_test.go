@@ -674,7 +674,7 @@ printf '%s\n' '{"id":"test","title":"test","webpage_url":"https://example.com/te
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.fetchInfo("https://example.com/test"); err != nil {
+	if _, err := e.fetchInfo(context.Background(), "https://example.com/test"); err != nil {
 		t.Fatalf("fetchInfo returned error: %v", err)
 	}
 
@@ -720,7 +720,7 @@ sleep 10
 		t.Fatal(err)
 	}
 	started := time.Now()
-	if _, err := e.fetchInfo("https://example.com/test"); err == nil {
+	if _, err := e.fetchInfo(context.Background(), "https://example.com/test"); err == nil {
 		t.Fatal("fetchInfo unexpectedly succeeded")
 	}
 	if elapsed := time.Since(started); elapsed > 2500*time.Millisecond {

@@ -31,16 +31,17 @@ track `master` and replay our patches with `git rebase`.
   previews. Sidecar in `defuddle-svc/`; service + memory caps in `compose.override.yml`.
   Enable: `extractors.defuddle.enable: true`.
 
-- **Google Docs extractor.** Public Google Docs (`docs.google.com/document/d/<id>/…`)
-  render entirely client-side, so the http crawler only sees an empty SPA shell and
-  Basic indexed a stub. The extractor (`server/extractor/extractors/googledocs/`)
-  re-fetches the document from the static export endpoint
-  (`/document/d/<id>/export?format=html`, no JS needed), replaces the stored
-  snapshot with the export HTML, and indexes title + text from it. Private docs
-  (login redirect / non-200) fall through to the generic chain unchanged. Previews
-  render from the stored export HTML; pre-fork stub snapshots are re-fetched on
-  preview. Enabled by default. Sheets/Slides are out of scope (different export
-  paths).
+- **Google Docs and Sheets extractor.** Public Docs and Sheets editor URLs render
+  client-side, so the http crawler otherwise sees an empty SPA shell. The extractor
+  (`server/extractor/extractors/googledocs/`) fetches Docs through the static HTML
+  export endpoint and Sheets through the visualization HTML endpoint, replaces the
+  stored shell, and indexes document text or tab-separated sheet rows. It retains
+  offline HTML previews and the selected Sheets `gid`; private resources fall
+  through unchanged. Enabled by default. Slides remain unsupported.
+
+- **Reliable CLI JSON and requested text fields.** `search --format json` streams a
+  valid JSON array without a trailing comma, and `search -F text` sets
+  `include_text` so the returned field contains the stored searchable text.
 
 - **`--min-visit` fix.** Registered the flag on `import-browser` too (upstream only put
   it on the JSON `import` command, so it silently no-op'd). File: `cmd/root.go`.

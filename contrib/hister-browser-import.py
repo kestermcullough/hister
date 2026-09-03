@@ -3,7 +3,7 @@
 
 The source databases are never modified. Each run creates a small Chromium-
 shaped staging database, excludes Google Search result pages, and feeds it to a
-stable Hister v0.17 persistent browser-import job. That job provides exact-URL
+stable Hister persistent browser-import job. That job provides exact-URL
 deduplication before crawling. Machine-specific sources live in an external
 JSON config file so this script can remain safe to commit and share.
 """
