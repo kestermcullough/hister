@@ -424,6 +424,13 @@ def fetch_remote(source: dict, destination: Path, logger: Logger) -> None:
     finally:
         if incoming.exists():
             incoming.unlink()
+        # rsync writes into a hidden sibling such as
+        # `.source.sqlite.incoming.A1b2C3` before its final rename. Remove only
+        # that importer-owned pattern when a timeout or transfer error leaves
+        # the temporary file behind.
+        for partial in incoming.parent.glob("." + incoming.name + ".*"):
+            if partial.is_file() or partial.is_symlink():
+                partial.unlink()
         try:
             subprocess.run(
                 [SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host, "rm", "-f", remote_tmp],

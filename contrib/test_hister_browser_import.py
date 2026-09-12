@@ -150,6 +150,7 @@ class MonitoringAndStatsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "remote.sqlite"
             incoming = destination.with_suffix(destination.suffix + ".incoming")
+            rsync_partial = incoming.parent / ("." + incoming.name + ".partial")
             source = {
                 "name": "remote-brave",
                 "host": "example.invalid",
@@ -159,6 +160,7 @@ class MonitoringAndStatsTest(unittest.TestCase):
             def run(command, *args, **kwargs):
                 if command[0] == IMPORTER.RSYNC:
                     incoming.write_bytes(b"partial")
+                    rsync_partial.write_bytes(b"rsync partial")
                     raise IMPORTER.subprocess.TimeoutExpired(
                         command, kwargs.get("timeout", IMPORTER.RSYNC_TIMEOUT_SECONDS)
                     )
@@ -169,6 +171,7 @@ class MonitoringAndStatsTest(unittest.TestCase):
                     IMPORTER.fetch_remote(source, destination, mock.Mock())
             self.assertFalse(destination.exists())
             self.assertFalse(incoming.exists())
+            self.assertFalse(rsync_partial.exists())
 
     def test_parse_crawl_stats(self):
         output = "STATE\npending: 1\nin_progress: 2\ndone: 3\nfailed: 4\nskipped: 5\n"
