@@ -146,6 +146,30 @@ class MonitoringAndStatsTest(unittest.TestCase):
             ["/bin/sh", "-s", "--", source, remote_tmp],
         )
 
+    def test_remote_rsync_timeout_is_bounded_and_cleans_partial_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "remote.sqlite"
+            incoming = destination.with_suffix(destination.suffix + ".incoming")
+            source = {
+                "name": "remote-brave",
+                "host": "example.invalid",
+                "path": "/remote/History",
+            }
+
+            def run(command, *args, **kwargs):
+                if command[0] == IMPORTER.RSYNC:
+                    incoming.write_bytes(b"partial")
+                    raise IMPORTER.subprocess.TimeoutExpired(
+                        command, kwargs.get("timeout", IMPORTER.RSYNC_TIMEOUT_SECONDS)
+                    )
+                return IMPORTER.subprocess.CompletedProcess(command, 0, "", "")
+
+            with mock.patch.object(IMPORTER.subprocess, "run", side_effect=run):
+                with self.assertRaisesRegex(RuntimeError, "rsync timed out after 60 seconds"):
+                    IMPORTER.fetch_remote(source, destination, mock.Mock())
+            self.assertFalse(destination.exists())
+            self.assertFalse(incoming.exists())
+
     def test_parse_crawl_stats(self):
         output = "STATE\npending: 1\nin_progress: 2\ndone: 3\nfailed: 4\nskipped: 5\n"
         self.assertEqual(

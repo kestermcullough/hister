@@ -34,6 +34,8 @@ DOCKER = "/usr/local/bin/docker"
 SSH = "/usr/bin/ssh"
 RSYNC = "/usr/bin/rsync"
 MAX_LOG_BYTES = 10 * 1024 * 1024
+REMOTE_BACKUP_TIMEOUT_SECONDS = 45
+RSYNC_TIMEOUT_SECONDS = 60
 
 WEBKIT_EPOCH_OFFSET = 11644473600
 COCOA_EPOCH_OFFSET = 978307200
@@ -376,29 +378,63 @@ def fetch_remote(source: dict, destination: Path, logger: Logger) -> None:
         SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", host,
         remote_command,
     ]
-    result = subprocess.run(command, input=REMOTE_BACKUP_SCRIPT, text=True, capture_output=True)
+    try:
+        result = subprocess.run(
+            command,
+            input=REMOTE_BACKUP_SCRIPT,
+            text=True,
+            capture_output=True,
+            timeout=REMOTE_BACKUP_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "remote sqlite backup timed out after {} seconds".format(
+                REMOTE_BACKUP_TIMEOUT_SECONDS
+            )
+        ) from exc
     if result.returncode != 0:
         raise RuntimeError("remote sqlite backup failed: {}".format(result.stderr.strip() or result.returncode))
     incoming = destination.with_suffix(destination.suffix + ".incoming")
     try:
         if incoming.exists():
             incoming.unlink()
-        result = subprocess.run(
-            [RSYNC, "-a", "{}:{}".format(host, remote_tmp), str(incoming)],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    RSYNC,
+                    "-a",
+                    "--timeout=30",
+                    "-e",
+                    "{} -o BatchMode=yes -o ConnectTimeout=8 "
+                    "-o ServerAliveInterval=5 -o ServerAliveCountMax=2".format(SSH),
+                    "{}:{}".format(host, remote_tmp),
+                    str(incoming),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=RSYNC_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                "rsync timed out after {} seconds".format(RSYNC_TIMEOUT_SECONDS)
+            ) from exc
         if result.returncode != 0 or not incoming.exists() or incoming.stat().st_size == 0:
             raise RuntimeError("rsync failed: {}".format(result.stderr.strip() or result.returncode))
         os.replace(str(incoming), str(destination))
     finally:
         if incoming.exists():
             incoming.unlink()
-        subprocess.run(
-            [SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host, "rm", "-f", remote_tmp],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        try:
+            subprocess.run(
+                [SSH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host, "rm", "-f", remote_tmp],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            # The local snapshot is already safe; a stale remote temp file is
+            # preferable to wedging or masking the result of the import run.
+            pass
 
 
 def create_chromium_stage(source: Path, destination: Path, cutoff_epoch: int, config: dict) -> Tuple[dict, int]:
