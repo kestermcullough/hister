@@ -165,7 +165,7 @@ class MonitoringAndStatsTest(unittest.TestCase):
                 return IMPORTER.subprocess.CompletedProcess(command, 0, "", "")
 
             with mock.patch.object(IMPORTER.subprocess, "run", side_effect=run):
-                with self.assertRaisesRegex(RuntimeError, "rsync timed out after 60 seconds"):
+                with self.assertRaisesRegex(RuntimeError, "rsync timed out after 600 seconds"):
                     IMPORTER.fetch_remote(source, destination, mock.Mock())
             self.assertFalse(destination.exists())
             self.assertFalse(incoming.exists())

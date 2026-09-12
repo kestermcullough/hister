@@ -35,7 +35,7 @@ SSH = "/usr/bin/ssh"
 RSYNC = "/usr/bin/rsync"
 MAX_LOG_BYTES = 10 * 1024 * 1024
 REMOTE_BACKUP_TIMEOUT_SECONDS = 45
-RSYNC_TIMEOUT_SECONDS = 60
+RSYNC_TIMEOUT_SECONDS = 10 * 60
 
 WEBKIT_EPOCH_OFFSET = 11644473600
 COCOA_EPOCH_OFFSET = 978307200
@@ -403,7 +403,7 @@ def fetch_remote(source: dict, destination: Path, logger: Logger) -> None:
                 [
                     RSYNC,
                     "-a",
-                    "--timeout=30",
+                    "--timeout=60",
                     "-e",
                     "{} -o BatchMode=yes -o ConnectTimeout=8 "
                     "-o ServerAliveInterval=5 -o ServerAliveCountMax=2".format(SSH),
