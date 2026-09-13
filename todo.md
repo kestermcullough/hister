@@ -45,10 +45,11 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   captioned YouTube video stored 15,400 characters including its transcript,
   left no yt-dlp runtime files under `/tmp`, and kept the service healthy with
   zero restarts.
-- [ ] **Reconcile the public fork remote.** Local `master` contains the rebased
-  v0.17 fork and is 225 commits ahead / 12 commits behind `origin/master` because
-  the remote still represents the old pre-rebase history. Review the exact push
-  target and obtain explicit approval before replacing remote history.
+- [ ] **Reconcile the public fork remote.** Local `master` now contains the
+  deployed v0.18 integration and is 395 commits ahead / 12 commits behind
+  `origin/master` because the remote still represents the old pre-rebase
+  history. Review the exact push target and obtain explicit approval before
+  replacing remote history.
 - [ ] **Monitor the next scheduled recurring-browser run.** Two manual September
   12 runs completed Brave, Safari, and local Chrome under v0.18 with one-second
   request pacing, deduplication, and zero pending URLs. The live run also exposed
