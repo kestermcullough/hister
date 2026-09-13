@@ -50,13 +50,15 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   `origin/master` because the remote still represents the old pre-rebase
   history. Review the exact push target and obtain explicit approval before
   replacing remote history.
-- [ ] **Monitor the next scheduled recurring-browser run.** Two manual September
+- [x] **Monitor the next scheduled recurring-browser run.** Two manual September
   12 runs completed Brave, Safari, and local Chrome under v0.18 with one-second
   request pacing, deduplication, and zero pending URLs. The live run also exposed
   slow remote transfers: remote SQLite creation and rsync now have separate
   bounded timeouts, a ten-minute total allowance, and cleanup for rsync's hidden
-  partial files. Confirm the next unattended run and its stale/failure alert
-  state.
+  partial files. **Completed September 12:** the unattended 21:00 run completed
+  all three sources successfully. Brave queued and completed one new URL;
+  Safari deduplicated all 300 eligible URLs; local Chrome was a clean no-op;
+  every source ended with zero failed and zero pending URLs.
 - [ ] **Plan extension offline capture recovery.** The live extension still has
   no durable queue when Hister is unavailable; this is distinct from recurring
   browser-history recovery.
