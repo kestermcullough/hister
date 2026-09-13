@@ -3,7 +3,7 @@
 Working roadmap for this fork of asciimoo/hister. Bugs are upstream issues we can
 carry patches for; see FORK.md for the patch/rebase workflow.
 
-## Current priority (September 2, 2026)
+## Current priority (September 12, 2026)
 
 - [x] **Back up and deploy the yt-dlp private-runtime-temp fix on v0.17.0.**
   **Completed August 31:** created a 6.8 GiB checksum-verified full-volume
@@ -31,13 +31,28 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   stored text. The live v0.17 volume/image remain untouched. Current upstream
   master also has native Safari history import, but it is newer than v0.18.0;
   evaluate it separately instead of deploying an unreleased branch.
+- [x] **Back up and deploy the tested v0.18.0 integration.** **Completed
+  September 12:** captured fresh Brave/Safari/Chrome history first, then made a
+  consistent 9.72 GiB full-volume archive (6.85 GiB compressed) on the Extreme
+  SSD and verified SHA-256
+  `18b4d392de6f7580a16b251bb8a231a6e7a35cfdff77757917d1013091fed975`.
+  Preserved v0.17 as `hister:fork-pre-v0.18-20260912`, deployed the non-root
+  v0.18 release image, and verified database version 2 / index version 8,
+  SQLite integrity, search JSON and stored transcript text. All 106,701
+  pre-cutover documents and 19 rules survived migration and a controlled cold
+  restart with zero crash restarts. Post-upgrade imports added 28 more
+  documents, ending at 106,729.
 - [ ] **Reconcile the public fork remote.** Local `master` contains the rebased
   v0.17 fork and is 225 commits ahead / 12 commits behind `origin/master` because
   the remote still represents the old pre-rebase history. Review the exact push
   target and obtain explicit approval before replacing remote history.
-- [ ] **Monitor the next scheduled recurring-browser run.** The August 31 15:00
-  run completed all three sources with one-second request pacing and zero
-  pending URLs. Confirm another unattended run and its stale/failure alert state.
+- [ ] **Monitor the next scheduled recurring-browser run.** Two manual September
+  12 runs completed Brave, Safari, and local Chrome under v0.18 with one-second
+  request pacing, deduplication, and zero pending URLs. The live run also exposed
+  slow remote transfers: remote SQLite creation and rsync now have separate
+  bounded timeouts, a ten-minute total allowance, and cleanup for rsync's hidden
+  partial files. Confirm the next unattended run and its stale/failure alert
+  state.
 - [ ] **Plan extension offline capture recovery.** The live extension still has
   no durable queue when Hister is unavailable; this is distinct from recurring
   browser-history recovery.
