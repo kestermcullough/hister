@@ -41,7 +41,10 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   SQLite integrity, search JSON and stored transcript text. All 106,701
   pre-cutover documents and 19 rules survived migration and a controlled cold
   restart with zero crash restarts. Post-upgrade imports added 28 more
-  documents, ending at 106,729.
+  documents, ending at 106,729. A production `--force` refresh of an available
+  captioned YouTube video stored 15,400 characters including its transcript,
+  left no yt-dlp runtime files under `/tmp`, and kept the service healthy with
+  zero restarts.
 - [ ] **Reconcile the public fork remote.** Local `master` contains the rebased
   v0.17 fork and is 225 commits ahead / 12 commits behind `origin/master` because
   the remote still represents the old pre-rebase history. Review the exact push
