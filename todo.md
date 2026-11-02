@@ -3,7 +3,42 @@
 Working roadmap for this fork of asciimoo/hister. Bugs are upstream issues we can
 carry patches for; see FORK.md for the patch/rebase workflow.
 
-## Current priority (September 12, 2026)
+## Current priority (November 2, 2026)
+
+- [x] **Restore the October 28 index failure.** The service started after reboot,
+  then began failing at 20:55 UTC, about four hours later. Five English index
+  segment files were missing. A consistent full-volume backup was made on the
+  Extreme SSD before testing removal of their snapshot references on a copy.
+  Applied the tested repair with approval and retained 120,026 documents and
+  19 rules. The cause of the missing files remains unknown.
+- [x] **Recover browser history after the outage.** Used a separate persistent
+  job, `browser-import-recovery-20261102`, so earlier completion records could
+  not suppress recovery. Scanned laptop Brave and Safari with a 14-day overlap,
+  laptop Chrome, two inactive Brave profiles, and local Chrome. Existing URLs
+  were skipped. The index increased to 120,783 documents. The job finished with
+  664 done, 1,359 skipped, 148 failed, and no pending URLs. Failed URLs remain
+  in the job, mostly because of access restrictions, missing pages, or non-HTML
+  responses. Another laptop refused SSH, so its history was not read. Added
+  laptop Chrome to the regular import configuration. SQLite integrity, search,
+  stored text, and a cold restart passed. Hister is healthy with zero crash
+  restarts. All 12 recurring-import tests passed. Deleted the temporary SSD
+  backup and recovery files after verification, as requested.
+- [x] **Check origin and upstream without changing the deployed release.**
+  Fetched both remotes. `origin/master` is `102495de`; local HEAD has 35 commits
+  absent from origin, while origin has 103 absent locally. A plain pull would
+  combine different fork histories and could discard local behavior if resolved
+  incorrectly. Upstream has released v0.19.0, v0.20.0, and v0.21.0. The latest
+  stable tag is `161bd84e` (v0.21.0). No merge, rebase, push, or upgrade was done.
+- [ ] **Test a v0.21.0 upgrade on a disposable data copy.** Prioritize the security
+  fixes, browser capture improvements, native Safari imports, diagnostics, and
+  correct reporting of failed document submissions. Preserve the recurring
+  importer, Docs/Sheets extractor, yt-dlp process and temporary-directory fixes,
+  cookie support, and snapshot settings. Review changed CLI output and exit
+  codes against the import script. The Bleve index version remains 8, but the
+  SQLite timestamp migration still needs testing. No reviewed change is a
+  confirmed fix for the missing segment files.
+
+## Previous deployment work (September 12, 2026)
 
 - [x] **Back up and deploy the yt-dlp private-runtime-temp fix on v0.17.0.**
   **Completed August 31:** created a 6.8 GiB checksum-verified full-volume
@@ -46,10 +81,10 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   left no yt-dlp runtime files under `/tmp`, and kept the service healthy with
   zero restarts.
 - [ ] **Reconcile the public fork remote.** Local `master` now contains the
-  deployed v0.18 integration and is 395 commits ahead / 12 commits behind
-  `origin/master` because the remote still represents the old pre-rebase
-  history. Review the exact push target and obtain explicit approval before
-  replacing remote history.
+  deployed v0.18 integration. The November 2 fetch found another fork history
+  on origin, with 35 local-only commits and 103 remote-only commits. See the
+  current update assessment above. Review the exact push target and obtain
+  explicit approval before replacing remote history.
 - [x] **Monitor the next scheduled recurring-browser run.** Two manual September
   12 runs completed Brave, Safari, and local Chrome under v0.18 with one-second
   request pacing, deduplication, and zero pending URLs. The live run also exposed
