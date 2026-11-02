@@ -16,6 +16,8 @@ manage.sh
 *.log
 .env
 .env.*
+# [fork] yt-dlp cookies are bind-mounted at runtime, never built in.
+cookies.txt
 
 # Go Build Artifacts
 hister
@@ -54,6 +56,10 @@ webui/website/
 # Browser Extension & Nix
 ext/
 node_modules/
+# [fork] anchored node_modules/ misses nested workspace installs (webui/app,
+# webui/components) left by host-side npm runs; copying those over the image's
+# npm ci breaks `vite build`.
+**/node_modules/
 flake.nix
 flake.lock
 nix/
