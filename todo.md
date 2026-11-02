@@ -29,14 +29,27 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   combine different fork histories and could discard local behavior if resolved
   incorrectly. Upstream has released v0.19.0, v0.20.0, and v0.21.0. The latest
   stable tag is `161bd84e` (v0.21.0). No merge, rebase, push, or upgrade was done.
-- [ ] **Test a v0.21.0 upgrade on a disposable data copy.** Prioritize the security
-  fixes, browser capture improvements, native Safari imports, diagnostics, and
-  correct reporting of failed document submissions. Preserve the recurring
-  importer, Docs/Sheets extractor, yt-dlp process and temporary-directory fixes,
-  cookie support, and snapshot settings. Review changed CLI output and exit
-  codes against the import script. The Bleve index version remains 8, but the
-  SQLite timestamp migration still needs testing. No reviewed change is a
-  confirmed fix for the missing segment files.
+- [x] **Upgrade to upstream v0.21 (master `7741a6ff`).** Rebased the fork onto
+  upstream on `integrate-upstream-v0.21`. Retired the search JSON/text and index
+  extractor-init patches because upstream now covers them. Ported `--job-id` and
+  empty-job completion into upstream's new browser import job functions, added
+  the `app.strip_images` config catalog entry, and fixed missing Google Docs titles
+  under v0.21. Go build, vet and tests passed (as a non-root user), and the 12
+  import-script tests passed. A cold copy of the live volume ran the new image on
+  port 4434: the SQLite timestamp migration completed, the index version 8 and
+  analyzer checks passed, and Docs, Sheets, YouTube, Defuddle, JSON search and a
+  legacy `browser-import-recurring` resume all worked. Deployed live on November 2.
+  The intended pre-upgrade backup failed because the release image runs as a
+  non-root user, so the deploy migrated live data without one. Live came up
+  healthy with 120,970 documents. A cold post-migration backup was then taken in
+  the Docker volume `hister_pre_v021_backup_20261102` (the name is misleading; it
+  is post-migration). A manual recurring import ran 4 sources with 0 failures.
+- [ ] **Delete `hister_pre_v021_backup_20261102`** once v0.21 has run cleanly for
+  a while.
+- [ ] **Silence the `tui.yaml` warning.** Every CLI call in the read-only
+  container warns that `/etc/hister/tui.yaml` cannot be created. It is harmless.
+- [ ] **Docker credential helper hangs** for anonymous pulls on this Mac. Builds
+  worked with `DOCKER_CONFIG` pointing at a temporary empty config.
 
 ## Previous deployment work (September 12, 2026)
 
@@ -80,11 +93,10 @@ carry patches for; see FORK.md for the patch/rebase workflow.
   captioned YouTube video stored 15,400 characters including its transcript,
   left no yt-dlp runtime files under `/tmp`, and kept the service healthy with
   zero restarts.
-- [ ] **Reconcile the public fork remote.** Local `master` now contains the
-  deployed v0.18 integration. The November 2 fetch found another fork history
-  on origin, with 35 local-only commits and 103 remote-only commits. See the
-  current update assessment above. Review the exact push target and obtain
-  explicit approval before replacing remote history.
+- [x] **Reconcile the public fork remote.** On November 2, `origin/master`
+  (`102495de`) was replaced with the v0.21 integration. Its 12 fork commits were
+  older copies of local commits; the one unique change (`.dockerignore`
+  hardening) was carried forward.
 - [x] **Monitor the next scheduled recurring-browser run.** Two manual September
   12 runs completed Brave, Safari, and local Chrome under v0.18 with one-second
   request pacing, deduplication, and zero pending URLs. The live run also exposed
