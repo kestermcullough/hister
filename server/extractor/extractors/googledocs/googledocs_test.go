@@ -212,6 +212,33 @@ func TestExtractPublicDoc(t *testing.T) {
 	}
 }
 
+func TestExtractDocWithoutExportTitleUsesShellTitle(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `<html><head><style>p{}</style></head><body class="doc-content"><p>Body text</p></body></html>`)
+	}))
+	defer srv.Close()
+
+	for _, tc := range []struct{ name, title, want string }{
+		{"shell title", "", "Modos laptop"},
+		{"caller title wins", "From browser", "From browser"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := &GoogleDocsExtractor{base: srv.URL}
+			d := &sdk.Document{
+				URL:   "https://docs.google.com/document/d/notitle/edit",
+				Title: tc.title,
+				HTML:  "<html><head><title>Modos laptop - Google Docs</title></head><body></body></html>",
+			}
+			if result := e.Extract(d); result.Decision() != sdk.ExtractorSuccess {
+				t.Fatalf("decision = %v, err = %v", result.Decision(), result.Err())
+			}
+			if d.Title != tc.want {
+				t.Errorf("Title = %q, want %q", d.Title, tc.want)
+			}
+		})
+	}
+}
+
 func TestExtractPrivateDocContinues(t *testing.T) {
 	srv := newExportServer(t, "pub123")
 	defer srv.Close()

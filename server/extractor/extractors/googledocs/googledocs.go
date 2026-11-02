@@ -255,6 +255,19 @@ func exportContent(exportHTML string) (title, text, bodyHTML string, err error) 
 	return title, text, strings.TrimSpace(bodyHTML), nil
 }
 
+// shellTitle returns the editor page's <title> without the product suffix.
+func shellTitle(shellHTML string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(shellHTML))
+	if err != nil {
+		return ""
+	}
+	title := strings.TrimSpace(doc.Find("title").First().Text())
+	for _, suffix := range []string{" - Google Docs", " - Google Sheets"} {
+		title = strings.TrimSpace(strings.TrimSuffix(title, suffix))
+	}
+	return title
+}
+
 func (e *GoogleDocsExtractor) Extract(d *sdk.Document) sdk.ExtractResult {
 	exportHTML, err := e.fetchExport(d.URL)
 	if err != nil {
@@ -267,6 +280,11 @@ func (e *GoogleDocsExtractor) Extract(d *sdk.Document) sdk.ExtractResult {
 	}
 	if text == "" && title == "" {
 		return sdk.ExtractFallback(fmt.Errorf("export contained no content"))
+	}
+	// Docs exports carry no <title>. Keep a caller-provided title, or fall back
+	// to the editor shell's title before the shell is replaced.
+	if title == "" && strings.TrimSpace(d.Title) == "" {
+		title = shellTitle(d.HTML)
 	}
 	// Replace the SPA shell so the stored snapshot holds the real document.
 	d.HTML = exportHTML
