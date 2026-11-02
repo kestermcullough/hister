@@ -37,14 +37,34 @@ track `master` and replay our patches with `git rebase`.
   export endpoint and Sheets through the visualization HTML endpoint, replaces the
   stored shell, and indexes document text or tab-separated sheet rows. It retains
   offline HTML previews and the selected Sheets `gid`; private resources fall
-  through unchanged. Enabled by default. Slides remain unsupported.
+  through unchanged. Docs exports have no `<title>`, so the extractor keeps a
+  caller-provided title or falls back to the editor page title. Enabled by
+  default. Slides remain unsupported.
 
-- **Reliable CLI JSON and requested text fields.** `search --format json` streams a
-  valid JSON array without a trailing comma, and `search -F text` sets
-  `include_text` so the returned field contains the stored searchable text.
+- **yt-dlp hardening.** Read-only cookies file support (`cookies.txt`, bind-mounted
+  and gitignored), process-tree termination on timeout, private per-run temp
+  directories, and an architecture-aware yt-dlp download in the `Dockerfile`.
+  `compose.yml` gives `/tmp` exec space for the PyInstaller bundle.
 
-- **`--min-visit` fix.** Registered the flag on `import-browser` too (upstream only put
-  it on the JSON `import` command, so it silently no-op'd). File: `cmd/root.go`.
+- **Unattended recurring browser imports.** `import browser`, `import browser
+  history` and `import browser bookmarks` accept `--job-id` to create or resume a
+  named persistent job without the interactive chooser. History jobs accept the
+  `browser-history-import-` prefix and the legacy `browser-import-` prefix used by
+  our `browser-import-recurring` job; bookmark jobs need `browser-bookmark-import-`.
+  An import that finds nothing to crawl marks its job completed. The scheduled
+  driver is `contrib/hister-browser-import.py` (tests in
+  `contrib/test_hister_browser_import.py`).
+
+- **Config catalog entry for `app.strip_images`.** Upstream's settings catalog
+  must list every main config field. The fork field is listed as read-only in the
+  web settings page; manage it in `config.yml`.
+
+### Retired patches (now upstream)
+
+- `--min-visit` on `import browser` (v0.18).
+- Valid `search --format json` output and `search -F text` returning stored text
+  (v0.21 `writeSearchResults`).
+- Initializing configured extractors in `hister index` (v0.21).
 
 ## Deploy (build on each machine)
 
@@ -86,3 +106,9 @@ autoMemoryReclaim=gradual
 
 If `git rebase upstream/master` reports a conflict (upstream changed a line we
 patched), resolve it, `git rebase --continue`, then re-run the build step.
+
+Before deploying a new upstream release, test it on a disposable copy of the
+`hister_hister_data` volume (stop `hister`, copy the volume, restart it, then run
+the new image against the copy on another port). New releases can migrate the
+SQLite database, so keep a cold pre-upgrade copy until the deployment is verified.
+Run Go tests as a non-root user; a few upstream permission tests fail under root.
